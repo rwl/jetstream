@@ -1,0 +1,13 @@
+[package]
+name = "jetstream"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0-or-later"
+
+[dependencies]
+
+rand = "0.8.5"
+uuid = { version = "1.2.1", features = ["v4"] }
+bytebuffer = "2.0.1"
+lazy_static = "1.4.0"
+rasciigraph = "0.1.1"
