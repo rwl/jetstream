@@ -52,7 +52,7 @@ impl Encoder {
         }
     }
 
-    pub fn SetValues(&mut self, v: Vec<u64>) {
+    pub fn set_values(&mut self, v: Vec<u64>) {
         self.buf = v;
         self.t = v.len();
         self.h = 0;
@@ -60,7 +60,7 @@ impl Encoder {
         self.bytes.clear()
     }
 
-    pub fn Reset(&mut self) {
+    pub fn reset(&mut self) {
         self.t = 0;
         self.h = 0;
         self.bp = 0;
@@ -70,7 +70,7 @@ impl Encoder {
         self.bytes = self.bytes[..128].to_vec();
     }
 
-    pub fn Write(&mut self, v: u64) -> Result<(), String> {
+    pub fn write(&mut self, v: u64) -> Result<(), String> {
         if self.t >= self.buf.len() {
             self.flush()?;
         }
@@ -93,7 +93,7 @@ impl Encoder {
         }
 
         // encode as many values into one as we can
-        let (encoded, n) = Encode(self.buf[self.h..self.t])?;
+        let (encoded, n) = encode(self.buf[self.h..self.t])?;
 
         binary.BigEndian.PutUint64(self.b, encoded);
         if self.bp + 8 > self.bytes.len() {
@@ -116,7 +116,7 @@ impl Encoder {
         Ok(())
     }
 
-    pub fn Bytes(&mut self) -> Result<Vec<u8>, String> {
+    pub fn bytes(&mut self) -> Result<Vec<u8>, String> {
         while self.t > 0 {
             self.flush()?;
         }
@@ -144,9 +144,9 @@ impl Decoder {
         }
     }
 
-    // Next returns true if there are remaining values to be read.  Successive
-    // calls to Next advance the current element pointer.
-    pub fn Next(&mut self) -> bool {
+    /// Returns true if there are remaining values to be read. Successive
+    /// calls to `next` advance the current element pointer.
+    pub fn next(&mut self) -> bool {
         self.i += 1;
 
         if self.i >= self.n {
@@ -156,130 +156,130 @@ impl Decoder {
         self.bytes.len() >= 8 || (self.i >= 0 && self.i < self.n)
     }
 
-    pub fn SetBytes(&mut self, b: Vec<u8>) {
+    pub fn set_bytes(&mut self, b: Vec<u8>) {
         d.bytes = b;
         d.i = 0;
         d.n = 0;
     }
 
-    /// Read returns the current value.  Successive calls to Read return the same value.
-    pub fn Read(&self) -> u64 {
+    /// Returns the current value. Successive calls to `read` return the same value.
+    pub fn read(&self) -> u64 {
         let v = self.buf[self.i];
         v
     }
 
-    fn read(&mut self) {
+    fn _read(&mut self) {
         if self.bytes.len() < 8 {
             return;
         }
 
         let v = binary.BigEndian.Uint64(self.bytes[..8]);
         self.bytes = self.bytes[8..];
-        let (n, _) = Decode(&self.buf, v);
+        let (n, _) = decode(&self.buf, v);
         self.n = n;
         self.i = 0;
     }
 }
 
-struct packing {
+struct Packing {
     n: usize,
     bit: usize,
     unpack: fn(u64, &mut [u64; 240]),
     pack: fn(&[u64]) -> u64,
 }
 
-const selector: [packing; 16] = [
-    packing {
+const SELECTOR: [Packing; 16] = [
+    Packing {
         n: 240,
         bit: 0,
         unpack: unpack240,
         pack: pack240,
     },
-    packing {
+    Packing {
         n: 120,
         bit: 0,
         unpack: unpack120,
         pack: pack120,
     },
-    packing {
+    Packing {
         n: 60,
         bit: 1,
         unpack: unpack60,
         pack: pack60,
     },
-    packing {
+    Packing {
         n: 30,
         bit: 2,
         unpack: unpack30,
         pack: pack30,
     },
-    packing {
+    Packing {
         n: 20,
         bit: 3,
         unpack: unpack20,
         pack: pack20,
     },
-    packing {
+    Packing {
         n: 15,
         bit: 4,
         unpack: unpack15,
         pack: pack15,
     },
-    packing {
+    Packing {
         n: 12,
         bit: 5,
         unpack: unpack12,
         pack: pack12,
     },
-    packing {
+    Packing {
         n: 10,
         bit: 6,
         unpack: unpack10,
         pack: pack10,
     },
-    packing {
+    Packing {
         n: 8,
         bit: 7,
         unpack: unpack8,
         pack: pack8,
     },
-    packing {
+    Packing {
         n: 7,
         bit: 8,
         unpack: unpack7,
         pack: pack7,
     },
-    packing {
+    Packing {
         n: 6,
         bit: 10,
         unpack: unpack6,
         pack: pack6,
     },
-    packing {
+    Packing {
         n: 5,
         bit: 12,
         unpack: unpack5,
         pack: pack5,
     },
-    packing {
+    Packing {
         n: 4,
         bit: 15,
         unpack: unpack4,
         pack: pack4,
     },
-    packing {
+    Packing {
         n: 3,
         bit: 20,
         unpack: unpack3,
         pack: pack3,
     },
-    packing {
+    Packing {
         n: 2,
         bit: 30,
         unpack: unpack2,
         pack: pack2,
     },
-    packing {
+    Packing {
         n: 1,
         bit: 60,
         unpack: unpack1,
@@ -288,7 +288,7 @@ const selector: [packing; 16] = [
 ];
 
 /// Returns the number of integers encoded in the byte slice.
-pub fn CountBytes(mut b: &[u8]) -> Result<usize, String> {
+pub fn count_bytes(mut b: &[u8]) -> Result<usize, String> {
     let mut count = 0;
     while b.len() >= 8 {
         let v = binary.BigEndian.Uint64(b[..8]);
@@ -298,7 +298,7 @@ pub fn CountBytes(mut b: &[u8]) -> Result<usize, String> {
         if sel >= 16 {
             return Err(format!("invalid selector value: {}", sel));
         }
-        count += selector[sel].n;
+        count += SELECTOR[sel].n;
     }
 
     if b.len() > 0 {
@@ -308,15 +308,15 @@ pub fn CountBytes(mut b: &[u8]) -> Result<usize, String> {
 }
 
 /// Returns the number of integers encoded within an u64.
-pub fn Count(v: u64) -> Result<usize, String> {
+pub fn count(v: u64) -> Result<usize, String> {
     let sel = v >> 60;
     if sel >= 16 {
         return Err(format!("invalid selector value: {}", sel));
     }
-    Ok(selector[sel].n)
+    Ok(SELECTOR[sel].n)
 }
 
-pub fn ForEach(mut b: &[u8], fn_: fn(v: u64) -> bool) -> Result<usize, String> {
+pub fn for_each(mut b: &[u8], fn_: fn(v: u64) -> bool) -> Result<usize, String> {
     let mut count = 0;
     while b.len() >= 8 {
         let v = binary.BigEndian.Uint64(b[..8]);
@@ -328,8 +328,8 @@ pub fn ForEach(mut b: &[u8], fn_: fn(v: u64) -> bool) -> Result<usize, String> {
             return Err(format!("invalid selector value: {}", sel));
         }
 
-        let n = selector[sel].n;
-        let bits = selector[sel].bit; // as usize;
+        let n = SELECTOR[sel].n;
+        let bits = SELECTOR[sel].bit; // as usize;
 
         // let mask = uint64(^(int64(^0) << bits))
         unimplemented!("mask"); // FIXME
@@ -345,7 +345,7 @@ pub fn ForEach(mut b: &[u8], fn_: fn(v: u64) -> bool) -> Result<usize, String> {
     Ok(count)
 }
 
-pub fn CountBytesBetween(mut b: &[u8], min: u64, max: u64) -> Result<usize, String> {
+pub fn count_bytes_between(mut b: &[u8], min: u64, max: u64) -> Result<usize, String> {
     let mut count = 0;
     while b.len() >= 8 {
         let v = binary.BigEndian.Uint64(&b[..8]);
@@ -357,15 +357,15 @@ pub fn CountBytesBetween(mut b: &[u8], min: u64, max: u64) -> Result<usize, Stri
         }
         // If the max value that could be encoded by the uint64 is less than the min
         // skip the whole thing.
-        let maxValue = ((1 << (selector[sel].bit as u64)) - 1) as u64;
-        if maxValue < min {
+        let max_value = ((1 << (SELECTOR[sel].bit as u64)) - 1) as u64;
+        if max_value < min {
             continue;
         }
 
         // mask := uint64(^(int64(^0) << uint(selector[sel].bit)))
         unimplemented!("mask"); // FIXME
 
-        for i in 0..selector[sel].n {
+        for i in 0..SELECTOR[sel].n {
             let val = v & mask;
             if val >= min && val < max {
                 count += 1;
@@ -373,7 +373,7 @@ pub fn CountBytesBetween(mut b: &[u8], min: u64, max: u64) -> Result<usize, Stri
                 break;
             }
 
-            v = v >> selector[sel].bit; // as usize
+            v = v >> SELECTOR[sel].bit; // as usize
         }
     }
 
@@ -384,41 +384,41 @@ pub fn CountBytesBetween(mut b: &[u8], min: u64, max: u64) -> Result<usize, Stri
     }
 }
 
-/// Encode packs as many values into a single uint64.  It returns the packed
+/// Packs as many values into a single uint64. It returns the packed
 /// u64, how many values from src were packed, or an error if the values exceed
 /// the maximum value range.
-pub fn Encode(src: &[u64]) -> Result<(u64, usize), String> {
-    if canPack(src, 240, 0) {
+pub fn encode(src: &[u64]) -> Result<(u64, usize), String> {
+    if can_pack(src, 240, 0) {
         Ok((0u64, 240))
-    } else if canPack(src, 120, 0) {
+    } else if can_pack(src, 120, 0) {
         Ok((1 << 60, 120))
-    } else if canPack(src, 60, 1) {
+    } else if can_pack(src, 60, 1) {
         Ok((pack60(&src[..60]), 60))
-    } else if canPack(src, 30, 2) {
+    } else if can_pack(src, 30, 2) {
         Ok((pack30(&src[..30]), 30))
-    } else if canPack(src, 20, 3) {
+    } else if can_pack(src, 20, 3) {
         Ok((pack20(&src[..20]), 20))
-    } else if canPack(src, 15, 4) {
+    } else if can_pack(src, 15, 4) {
         Ok((pack15(&src[..15]), 15))
-    } else if canPack(src, 12, 5) {
+    } else if can_pack(src, 12, 5) {
         Ok((pack12(&src[..12]), 12))
-    } else if canPack(src, 10, 6) {
+    } else if can_pack(src, 10, 6) {
         Ok((pack10(&src[..10]), 10))
-    } else if canPack(src, 8, 7) {
+    } else if can_pack(src, 8, 7) {
         Ok((pack8(&src[..8]), 8))
-    } else if canPack(src, 7, 8) {
+    } else if can_pack(src, 7, 8) {
         Ok((pack7(&src[..7]), 7))
-    } else if canPack(src, 6, 10) {
+    } else if can_pack(src, 6, 10) {
         Ok((pack6(&src[..6]), 6))
-    } else if canPack(src, 5, 12) {
+    } else if can_pack(src, 5, 12) {
         Ok((pack5(&src[..5]), 5))
-    } else if canPack(src, 4, 15) {
+    } else if can_pack(src, 4, 15) {
         Ok((pack4(&src[..4]), 4))
-    } else if canPack(src, 3, 20) {
+    } else if can_pack(src, 3, 20) {
         Ok((pack3(&src[..3]), 3))
-    } else if canPack(src, 2, 30) {
+    } else if can_pack(src, 2, 30) {
         Ok((pack2(&src[..2]), 2))
-    } else if canPack(src, 1, 60) {
+    } else if can_pack(src, 1, 60) {
         Ok((pack1(&src[..1]), 1))
     } else {
         if src.len() > 0 {
@@ -432,7 +432,7 @@ pub fn Encode(src: &[u64]) -> Result<(u64, usize), String> {
 /// Returns a packed slice of the values from src. If a value is over
 /// `1 << 60`, an error is returned. The input src is modified to avoid
 /// extra allocations. If you need to re-use, use a copy.
-pub fn EncodeAll(src: &[u64]) -> Result<Vec<u64>, String> {
+pub fn encode_all(src: &[u64]) -> Result<Vec<u64>, String> {
     let mut i = 0;
 
     // Re-use the input slice and write encoded values back in place
@@ -445,52 +445,52 @@ pub fn EncodeAll(src: &[u64]) -> Result<Vec<u64>, String> {
         }
         let remaining = &src[i..];
 
-        if canPack(remaining, 240, 0) {
+        if can_pack(remaining, 240, 0) {
             dst[j] = 0;
             i += 240;
-        } else if canPack(remaining, 120, 0) {
+        } else if can_pack(remaining, 120, 0) {
             dst[j] = 1 << 60;
             i += 120;
-        } else if canPack(remaining, 60, 1) {
+        } else if can_pack(remaining, 60, 1) {
             dst[j] = pack60(&src[i..i + 60]);
             i += 60;
-        } else if canPack(remaining, 30, 2) {
+        } else if can_pack(remaining, 30, 2) {
             dst[j] = pack30(&src[i..i + 30]);
             i += 30;
-        } else if canPack(remaining, 20, 3) {
+        } else if can_pack(remaining, 20, 3) {
             dst[j] = pack20(&src[i..i + 20]);
             i += 20;
-        } else if canPack(remaining, 15, 4) {
+        } else if can_pack(remaining, 15, 4) {
             dst[j] = pack15(&src[i..i + 15]);
             i += 15;
-        } else if canPack(remaining, 12, 5) {
+        } else if can_pack(remaining, 12, 5) {
             dst[j] = pack12(&src[i..i + 12]);
             i += 12;
-        } else if canPack(remaining, 10, 6) {
+        } else if can_pack(remaining, 10, 6) {
             dst[j] = pack10(&src[i..i + 10]);
             i += 10;
-        } else if canPack(remaining, 8, 7) {
+        } else if can_pack(remaining, 8, 7) {
             dst[j] = pack8(&src[i..i + 8]);
             i += 8;
-        } else if canPack(remaining, 7, 8) {
+        } else if can_pack(remaining, 7, 8) {
             dst[j] = pack7(&src[i..i + 7]);
             i += 7;
-        } else if canPack(remaining, 6, 10) {
+        } else if can_pack(remaining, 6, 10) {
             dst[j] = pack6(&src[i..i + 6]);
             i += 6;
-        } else if canPack(remaining, 5, 12) {
+        } else if can_pack(remaining, 5, 12) {
             dst[j] = pack5(&src[i..i + 5]);
             i += 5;
-        } else if canPack(remaining, 4, 15) {
+        } else if can_pack(remaining, 4, 15) {
             dst[j] = pack4(&src[i..i + 4]);
             i += 4;
-        } else if canPack(remaining, 3, 20) {
+        } else if can_pack(remaining, 3, 20) {
             dst[j] = pack3(&src[i..i + 3]);
             i += 3;
-        } else if canPack(remaining, 2, 30) {
+        } else if can_pack(remaining, 2, 30) {
             dst[j] = pack2(&src[i..i + 2]);
             i += 2;
-        } else if canPack(remaining, 1, 60) {
+        } else if can_pack(remaining, 1, 60) {
             dst[j] = pack1(&src[i..i + 1]);
             i += 1;
         } else {
@@ -503,7 +503,7 @@ pub fn EncodeAll(src: &[u64]) -> Result<Vec<u64>, String> {
 
 /// Returns a packed slice of the values from src.  If a value is over
 /// 1 << 60, an error is returned.
-pub fn EncodeAllRef(dst: &mut [u64], src: &[u64]) -> Result<usize, String> {
+pub fn encode_all_ref(dst: &mut [u64], src: &[u64]) -> Result<usize, String> {
     let mut i = 0;
     let mut j = 0;
 
@@ -513,52 +513,52 @@ pub fn EncodeAllRef(dst: &mut [u64], src: &[u64]) -> Result<usize, String> {
         }
         let remaining = &src[i..];
 
-        if canPack(remaining, 240, 0) {
+        if can_pack(remaining, 240, 0) {
             (*dst)[j] = 0;
             i += 240;
-        } else if canPack(remaining, 120, 0) {
+        } else if can_pack(remaining, 120, 0) {
             (*dst)[j] = 1 << 60;
             i += 120;
-        } else if canPack(remaining, 60, 1) {
+        } else if can_pack(remaining, 60, 1) {
             (*dst)[j] = pack60(src[i: i + 60]);
             i += 60;
-        } else if canPack(remaining, 30, 2) {
+        } else if can_pack(remaining, 30, 2) {
             (*dst)[j] = pack30(src[i: i + 30]);
             i += 30;
-        } else if canPack(remaining, 20, 3) {
+        } else if can_pack(remaining, 20, 3) {
             (*dst)[j] = pack20(src[i: i + 20]);
             i += 20;
-        } else if canPack(remaining, 15, 4) {
+        } else if can_pack(remaining, 15, 4) {
             (*dst)[j] = pack15(src[i: i + 15]);
             i += 15;
-        } else if canPack(remaining, 12, 5) {
+        } else if can_pack(remaining, 12, 5) {
             (*dst)[j] = pack12(src[i: i + 12]);
             i += 12;
-        } else if canPack(remaining, 10, 6) {
+        } else if can_pack(remaining, 10, 6) {
             (*dst)[j] = pack10(src[i: i + 10]);
             i += 10;
-        } else if canPack(remaining, 8, 7) {
+        } else if can_pack(remaining, 8, 7) {
             (*dst)[j] = pack8(src[i: i + 8]);
             i += 8;
-        } else if canPack(remaining, 7, 8) {
+        } else if can_pack(remaining, 7, 8) {
             (*dst)[j] = pack7(src[i: i + 7]);
             i += 7;
-        } else if canPack(remaining, 6, 10) {
+        } else if can_pack(remaining, 6, 10) {
             (*dst)[j] = pack6(src[i: i + 6]);
             i += 6;
-        } else if canPack(remaining, 5, 12) {
+        } else if can_pack(remaining, 5, 12) {
             (*dst)[j] = pack5(src[i: i + 5]);
             i += 5;
-        } else if canPack(remaining, 4, 15) {
+        } else if can_pack(remaining, 4, 15) {
             (*dst)[j] = pack4(src[i: i + 4]);
             i += 4;
-        } else if canPack(remaining, 3, 20) {
+        } else if can_pack(remaining, 3, 20) {
             (*dst)[j] = pack3(src[i: i + 3]);
             i += 3;
-        } else if canPack(remaining, 2, 30) {
+        } else if can_pack(remaining, 2, 30) {
             (*dst)[j] = pack2(src[i: i + 2]);
             i += 2;
-        } else if canPack(remaining, 1, 60) {
+        } else if can_pack(remaining, 1, 60) {
             (*dst)[j] = pack1(src[i: i + 1]);
             i += 1;
         } else {
@@ -569,18 +569,18 @@ pub fn EncodeAllRef(dst: &mut [u64], src: &[u64]) -> Result<usize, String> {
     Ok(j)
 }
 
-pub fn Decode(dst: &mut [u64; 240], v: u64) -> Result<usize, String> {
+pub fn decode(dst: &mut [u64; 240], v: u64) -> Result<usize, String> {
     let sel = v >> 60;
     if sel >= 16 {
         return Err(format!("invalid selector value: {}", sel));
     }
-    selector[sel].unpack(v, dst);
-    Ok(selector[sel].n)
+    SELECTOR[sel].unpack(v, dst);
+    Ok(SELECTOR[sel].n)
 }
 
 /// Writes the uncompressed values from src to dst. It returns the number
 /// of values written or an error.
-pub fn DecodeAll(dst: &mut [u64], src: &[u64]) -> Result<usize, String> {
+pub fn decode_all(dst: &mut [u64], src: &[u64]) -> Result<usize, String> {
     let mut j = 0;
     src.iter().try_for_each(|v| {
         let sel = v >> 60;
@@ -589,14 +589,14 @@ pub fn DecodeAll(dst: &mut [u64], src: &[u64]) -> Result<usize, String> {
         }
         // selector[sel].unpack(v, (*[240]uint64)(unsafe.Pointer(&dst[j])))
         unimplemented!("unpack"); // FIXME
-        j += selector[sel].n;
+        j += SELECTOR[sel].n;
         Ok(())
     })?;
     Ok(j)
 }
 
 // Returns true if n elements from in can be stored using bits per element.
-fn canPack(src: &[u64], n: usize, bits: usize) -> bool {
+fn can_pack(src: &[u64], n: usize, bits: usize) -> bool {
     if src.len() < n {
         return false;
     }

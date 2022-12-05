@@ -1,51 +1,51 @@
 /// The number of samples per message required before using simple-8b encoding.
-pub const Simple8bThresholdSamples: usize = 16;
+pub const SIMPLE8B_THRESHOLD_SAMPLES: usize = 16;
 
 /// The default number of layers of delta encoding. 0 is no delta encoding (just use varint), 1 is delta encoding, etc.
-pub const DefaultDeltaEncodingLayers: usize = 3;
+pub const DEFAULT_DELTA_ENCODING_LAYERS: usize = 3;
 
 /// The number of layers of delta encoding for high sampling rate scenarios.
-pub const HighDeltaEncodingLayers: usize = 3;
+pub const HIGH_DELTA_ENCODING_LAYERS: usize = 3;
 
 /// The size of the message header in bytes.
-pub const MaxHeaderSize: usize = 36;
+pub const MAX_HEADER_SIZE: usize = 36;
 
 /// The minimum number of samples per message to use gzip on the payload.
-pub const UseGzipThresholdSamples: usize = 4096;
+pub const USE_GZIP_THRESHOLD_SAMPLES: usize = 4096;
 
 /// Lists of variables to be encoded.
 pub struct Dataset {
-    pub Int32s: Vec<i32>,
+    pub i32s: Vec<i32>,
     // can extend with other data types
 }
 
 /// Lists of decoded variables with a timestamp and quality
 pub struct DatasetWithQuality {
-    pub T: u64,
-    pub Int32s: Vec<i32>,
-    pub Q: Vec<u32>,
+    pub t: u64,
+    pub i32s: Vec<i32>,
+    pub q: Vec<u32>,
 }
 
-pub(crate) struct qualityHistory {
+pub(crate) struct QualityHistory {
     pub(crate) value: u32,
     pub(crate) samples: u32,
 }
 
-pub(crate) fn createSpatialRefs(
+pub(crate) fn create_spatial_refs(
     count: usize,
-    countV: usize,
-    countI: usize,
-    includeNeutral: bool,
+    count_v: usize,
+    count_i: usize,
+    include_neutral: bool,
 ) -> Vec<isize> {
     let mut refs: Vec<isize> = vec![-1; count as usize];
 
-    let inc = if includeNeutral { 4 } else { 3 };
+    let inc = if include_neutral { 4 } else { 3 };
 
     for i in 0..count {
         if i >= inc {
-            if i < countV * inc {
+            if i < count_v * inc {
                 refs[i] = (i - inc) as isize
-            } else if i >= (countV + 1) * inc && i < (countV + countI) * inc {
+            } else if i >= (count_v + 1) * inc && i < (count_v + count_i) * inc {
                 refs[i] = (i - inc) as isize
             }
         }
@@ -54,11 +54,11 @@ pub(crate) fn createSpatialRefs(
     refs
 }
 
-pub(crate) fn getDeltaEncoding(samplingRate: usize) -> usize {
-    if samplingRate > 100000 {
-        HighDeltaEncodingLayers
+pub(crate) fn get_delta_encoding(sampling_rate: usize) -> usize {
+    if sampling_rate > 100000 {
+        HIGH_DELTA_ENCODING_LAYERS
     } else {
-        DefaultDeltaEncodingLayers
+        DEFAULT_DELTA_ENCODING_LAYERS
     }
 }
 
@@ -91,7 +91,7 @@ pub(crate) fn varint32(buf: &[u8]) -> (i32, usize) {
 
 /// Encodes a uint64 into buf and returns the number of bytes written.
 /// If the buffer is too small, PutUvarint will panic.
-pub(crate) fn putUvarint32(buf: &mut [u8], mut x: u32) -> usize {
+pub(crate) fn put_uvarint32(buf: &mut [u8], mut x: u32) -> usize {
     let mut i = 0;
     while x >= 0x80 {
         buf[i] = (x as u8) | 0x80;
@@ -105,10 +105,10 @@ pub(crate) fn putUvarint32(buf: &mut [u8], mut x: u32) -> usize {
 
 /// Encodes an int64 into buf and returns the number of bytes written.
 /// If the buffer is too small, putVarint will panic.
-pub(crate) fn putVarint32(buf: &mut [u8], x: i32) -> usize {
+pub(crate) fn put_varint32(buf: &mut [u8], x: i32) -> usize {
     let mut ux = (x as u32) << 1;
     if x < 0 {
         ux = ux ^ ux
     }
-    putUvarint32(buf, ux)
+    put_uvarint32(buf, ux)
 }

@@ -6,29 +6,29 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 
 struct Test {
-    samplingRate: usize,
-    countOfVariables: usize,
+    sampling_rate: usize,
+    count_of_variables: usize,
     samples: usize,
-    samplesPerMessage: usize,
-    qualityChange: bool,
-    earlyEncodingStop: bool,
-    useSpatialRefs: bool,
-    includeNeutral: bool,
-    expectedSize: f64, // percentage of pre-encoding size
+    samples_per_message: usize,
+    quality_change: bool,
+    early_encoding_stop: bool,
+    use_spatial_refs: bool,
+    include_neutral: bool,
+    expected_size: f64, // percentage of pre-encoding size
 }
 
 impl Default for Test {
     fn default() -> Self {
         Self {
-            samplingRate: 0,
-            countOfVariables: 0,
+            sampling_rate: 0,
+            count_of_variables: 0,
             samples: 0,
-            samplesPerMessage: 0,
-            qualityChange: false,
-            earlyEncodingStop: false,
-            useSpatialRefs: false,
-            includeNeutral: false,
-            expectedSize: 0.0,
+            samples_per_message: 0,
+            quality_change: false,
+            early_encoding_stop: false,
+            use_spatial_refs: false,
+            include_neutral: false,
+            expected_size: 0.0,
         }
     }
 }
@@ -38,275 +38,275 @@ lazy_static! {
         (
             "a10-1".to_string(),
             Test {
-                samplingRate: 4000,
-                countOfVariables: 8,
+                sampling_rate: 4000,
+                count_of_variables: 8,
                 samples: 10,
-                samplesPerMessage: 1,
-                expectedSize: 53.0,
+                samples_per_message: 1,
+                expected_size: 53.0,
                 ..Default::default()
             },
         ),
         (
             "a10-2".to_string(),
             Test {
-                samplingRate: 4000,
-                countOfVariables: 8,
+                sampling_rate: 4000,
+                count_of_variables: 8,
                 samples: 10,
-                samplesPerMessage: 2,
-                expectedSize: 37.0,
+                samples_per_message: 2,
+                expected_size: 37.0,
                 ..Default::default()
             },
         ),
         (
             "a10-2q".to_string(),
             Test {
-                samplingRate: 4000,
-                countOfVariables: 8,
+                sampling_rate: 4000,
+                count_of_variables: 8,
                 samples: 10,
-                samplesPerMessage: 2,
-                qualityChange: true,
-                expectedSize: 37.0,
+                samples_per_message: 2,
+                quality_change: true,
+                expected_size: 37.0,
                 ..Default::default()
             },
         ),
         (
             "a10-10".to_string(),
             Test {
-                samplingRate: 4000,
-                countOfVariables: 8,
+                sampling_rate: 4000,
+                count_of_variables: 8,
                 samples: 10,
-                samplesPerMessage: 10,
-                expectedSize: 37.0,
+                samples_per_message: 10,
+                expected_size: 37.0,
                 ..Default::default()
             },
         ),
         (
             "a4-2q".to_string(),
             Test {
-                samplingRate: 4000,
-                countOfVariables: 8,
+                sampling_rate: 4000,
+                count_of_variables: 8,
                 samples: 4,
-                samplesPerMessage: 2,
-                qualityChange: true,
-                expectedSize: 37.0,
+                samples_per_message: 2,
+                quality_change: true,
+                expected_size: 37.0,
                 ..Default::default()
             },
         ),
         (
             "a8-8q".to_string(),
             Test {
-                samplingRate: 4000,
-                countOfVariables: 8,
+                sampling_rate: 4000,
+                count_of_variables: 8,
                 samples: 8,
-                samplesPerMessage: 8,
-                qualityChange: true,
-                expectedSize: 24.0,
+                samples_per_message: 8,
+                quality_change: true,
+                expected_size: 24.0,
                 ..Default::default()
             },
         ),
         (
             "b4000-2".to_string(),
             Test {
-                samplingRate: 4000,
-                countOfVariables: 8,
+                sampling_rate: 4000,
+                count_of_variables: 8,
                 samples: 4000,
-                samplesPerMessage: 2,
-                expectedSize: 37.0,
+                samples_per_message: 2,
+                expected_size: 37.0,
                 ..Default::default()
             },
         ),
         (
             "b4000-80".to_string(),
             Test {
-                samplingRate: 4000,
-                countOfVariables: 8,
+                sampling_rate: 4000,
+                count_of_variables: 8,
                 samples: 4000,
-                samplesPerMessage: 80,
-                expectedSize: 18.0,
+                samples_per_message: 80,
+                expected_size: 18.0,
                 ..Default::default()
             },
         ),
         (
             "b4000-60".to_string(),
             Test {
-                samplingRate: 4000,
-                countOfVariables: 8,
+                sampling_rate: 4000,
+                count_of_variables: 8,
                 samples: 4000,
-                samplesPerMessage: 60,
-                expectedSize: 18.0,
+                samples_per_message: 60,
+                expected_size: 18.0,
                 ..Default::default()
             },
         ),
         (
             "b4000-800".to_string(),
             Test {
-                samplingRate: 4000,
-                countOfVariables: 8,
+                sampling_rate: 4000,
+                count_of_variables: 8,
                 samples: 800,
-                samplesPerMessage: 800,
-                expectedSize: 17.0,
+                samples_per_message: 800,
+                expected_size: 17.0,
                 ..Default::default()
             },
         ),
         (
             "b4000-4000".to_string(),
             Test {
-                samplingRate: 4000,
-                countOfVariables: 8,
+                sampling_rate: 4000,
+                count_of_variables: 8,
                 samples: 4000,
-                samplesPerMessage: 4000,
-                expectedSize: 18.0,
+                samples_per_message: 4000,
+                expected_size: 18.0,
                 ..Default::default()
             },
         ),
         (
             "b4000-4000s1".to_string(),
             Test {
-                samplingRate: 4000,
-                countOfVariables: 16,
+                sampling_rate: 4000,
+                count_of_variables: 16,
                 samples: 4000,
-                samplesPerMessage: 4000,
-                useSpatialRefs: false,
-                expectedSize: 18.0,
+                samples_per_message: 4000,
+                use_spatial_refs: false,
+                expected_size: 18.0,
                 ..Default::default()
             },
         ),
         (
             "b4000-4000s2".to_string(),
             Test {
-                samplingRate: 4000,
-                countOfVariables: 16,
+                sampling_rate: 4000,
+                count_of_variables: 16,
                 samples: 4000,
-                samplesPerMessage: 4000,
-                useSpatialRefs: true,
-                expectedSize: 18.0,
+                samples_per_message: 4000,
+                use_spatial_refs: true,
+                expected_size: 18.0,
                 ..Default::default()
             },
         ),
         (
             "c4800-2".to_string(),
             Test {
-                samplingRate: 4800,
-                countOfVariables: 8,
+                sampling_rate: 4800,
+                count_of_variables: 8,
                 samples: 4800,
-                samplesPerMessage: 2,
-                expectedSize: 36.0,
+                samples_per_message: 2,
+                expected_size: 36.0,
                 ..Default::default()
             },
         ),
         (
             "c4800-20".to_string(),
             Test {
-                samplingRate: 4800,
-                countOfVariables: 8,
+                sampling_rate: 4800,
+                count_of_variables: 8,
                 samples: 4800,
-                samplesPerMessage: 20,
-                expectedSize: 20.0,
+                samples_per_message: 20,
+                expected_size: 20.0,
                 ..Default::default()
             },
         ),
         (
             "d14400-6".to_string(),
             Test {
-                samplingRate: 14400,
-                countOfVariables: 8,
+                sampling_rate: 14400,
+                count_of_variables: 8,
                 samples: 14400,
-                samplesPerMessage: 6,
-                expectedSize: 24.0,
+                samples_per_message: 6,
+                expected_size: 24.0,
                 ..Default::default()
             },
         ),
         (
             "d4000-4000q".to_string(),
             Test {
-                samplingRate: 4000,
-                countOfVariables: 8,
+                sampling_rate: 4000,
+                count_of_variables: 8,
                 samples: 4000,
-                samplesPerMessage: 4000,
-                qualityChange: true,
-                expectedSize: 17.0,
+                samples_per_message: 4000,
+                quality_change: true,
+                expected_size: 17.0,
                 ..Default::default()
             },
         ),
         (
             "e14400-14400".to_string(),
             Test {
-                samplingRate: 14400,
-                countOfVariables: 8,
+                sampling_rate: 14400,
+                count_of_variables: 8,
                 samples: 14400,
-                samplesPerMessage: 14400,
-                expectedSize: 36.0,
+                samples_per_message: 14400,
+                expected_size: 36.0,
                 ..Default::default()
             },
         ),
         (
             "e14400-14400s".to_string(),
             Test {
-                samplingRate: 14400,
-                countOfVariables: 8,
+                sampling_rate: 14400,
+                count_of_variables: 8,
                 samples: 14400,
-                samplesPerMessage: 14400,
-                earlyEncodingStop: true,
-                expectedSize: 20.0,
+                samples_per_message: 14400,
+                early_encoding_stop: true,
+                expected_size: 20.0,
                 ..Default::default()
             },
         ),
         (
             "e14400-14400q".to_string(),
             Test {
-                samplingRate: 14400,
-                countOfVariables: 8,
+                sampling_rate: 14400,
+                count_of_variables: 8,
                 samples: 14400,
-                samplesPerMessage: 14400,
-                qualityChange: true,
-                expectedSize: 18.0,
+                samples_per_message: 14400,
+                quality_change: true,
+                expected_size: 18.0,
                 ..Default::default()
             },
         ),
         (
             "f40000-40000".to_string(),
             Test {
-                samplingRate: 4000,
-                countOfVariables: 8,
+                sampling_rate: 4000,
+                count_of_variables: 8,
                 samples: 40000,
-                samplesPerMessage: 40000,
-                expectedSize: 17.0,
+                samples_per_message: 40000,
+                expected_size: 17.0,
                 ..Default::default()
             },
         ),
         (
             "g150000-150000".to_string(),
             Test {
-                samplingRate: 150000,
-                countOfVariables: 8,
+                sampling_rate: 150000,
+                count_of_variables: 8,
                 samples: 150000,
-                samplesPerMessage: 150000,
-                expectedSize: 16.0,
+                samples_per_message: 150000,
+                expected_size: 16.0,
                 ..Default::default()
             },
         ),
     ]);
 }
 
-fn createEmulator(samplingRate: usize, phaseOffsetDeg: f64) -> Emulator {
-    let mut emu = Emulator::new(samplingRate, 50.03);
+fn create_emulator(sampling_rate: usize, phase_offset_deg: f64) -> Emulator {
+    let mut emu = Emulator::new(sampling_rate, 50.03);
 
-    emu.V = Some(ThreePhaseEmulation {
-        PosSeqMag: 400000.0 / math.Sqrt(3) * math.Sqrt(2),
-        NoiseMax: 0.000001,
-        PhaseOffset: phaseOffsetDeg * math.Pi / 180.0,
+    emu.v = Some(ThreePhaseEmulation {
+        pos_seq_mag: 400000.0 / math.Sqrt(3) * math.Sqrt(2),
+        noise_max: 0.000001,
+        phase_offset: phase_offset_deg * math.Pi / 180.0,
 
         ..Default::default()
     });
-    emu.I = Some(ThreePhaseEmulation {
-        PosSeqMag: 500.0,
-        PhaseOffset: phaseOffsetDeg * math.Pi / 180.0,
-        HarmonicNumbers: vec![5.0, 7.0, 11.0, 13.0, 17.0, 19.0, 23.0, 25.0],
-        HarmonicMags: vec![
+    emu.i = Some(ThreePhaseEmulation {
+        pos_seq_mag: 500.0,
+        phase_offset: phase_offset_deg * math.Pi / 180.0,
+        harmonic_numbers: vec![5.0, 7.0, 11.0, 13.0, 17.0, 19.0, 23.0, 25.0],
+        harmonic_mags: vec![
             0.2164, 0.1242, 0.0892, 0.0693, 0.0541, 0.0458, 0.0370, 0.0332,
         ],
-        HarmonicAngs: vec![171.5, 100.4, -52.4, 128.3, 80.0, 2.9, -146.8, 133.9],
-        NoiseMax: 0.00001,
+        harmonic_angs: vec![171.5, 100.4, -52.4, 128.3, 80.0, 2.9, -146.8, 133.9],
+        noise_max: 0.00001,
 
         ..Default::default()
     });
@@ -314,7 +314,7 @@ fn createEmulator(samplingRate: usize, phaseOffsetDeg: f64) -> Emulator {
     emu
 }
 
-fn BenchmarkEncodeDecode(b1: testing::B) {
+fn benchmark_encode_decode(b1: testing::B) {
     // let keys = Vec::with_capacity(TESTS.len());
     // for k := range tests {
     let mut keys = TESTS.keys().map(|k| k).collect::<Vec<String>>();
@@ -327,51 +327,55 @@ fn BenchmarkEncodeDecode(b1: testing::B) {
     keys.iter().for_each(|name| {
         // for _, name := range keys {
         b1.Run(name, |b: testing::B| {
-            for i in 0..b.N {
+            for _i in 0..b.N {
                 b.StopTimer();
 
                 let test = TESTS.get(name).unwrap();
 
                 // settings for IED emulator
-                let ied: Emulator = createEmulator(test.samplingRate, 0.0);
+                let mut ied: Emulator = create_emulator(test.sampling_rate, 0.0);
 
                 // initialise data structure for input data
-                let data: Vec<DatasetWithQuality> =
-                    createInputData(ied, test.samples, test.countOfVariables, test.qualityChange);
+                let mut data: Vec<DatasetWithQuality> = create_input_data(
+                    &mut ied,
+                    test.samples,
+                    test.count_of_variables,
+                    test.quality_change,
+                );
 
                 // create encoder and decoder
-                let stream = Encoder::new(
+                let mut stream = Encoder::new(
                     ID,
-                    test.countOfVariables,
-                    test.samplingRate,
-                    test.samplesPerMessage,
+                    test.count_of_variables,
+                    test.sampling_rate,
+                    test.samples_per_message,
                 );
-                let streamDecoder = Decoder::new(
+                let mut stream_decoder = Decoder::new(
                     ID,
-                    test.countOfVariables,
-                    test.samplingRate,
-                    test.samplesPerMessage,
+                    test.count_of_variables,
+                    test.sampling_rate,
+                    test.samples_per_message,
                 );
 
                 b.StartTimer();
 
                 // encode the data
                 // when each message is complete, decode
-                encodeAndDecode(
+                encode_and_decode(
                     nil,
-                    &data,
-                    stream,
-                    streamDecoder,
-                    test.countOfVariables,
-                    test.samplesPerMessage,
-                    test.earlyEncodingStop,
+                    &mut data,
+                    &mut stream,
+                    &mut stream_decoder,
+                    test.count_of_variables,
+                    test.samples_per_message,
+                    test.early_encoding_stop,
                 );
             }
         });
     });
 }
 
-fn BenchmarkEncode(b1: testing::B) {
+fn benchmark_encode(b1: testing::B) {
     // keys := make([]string, 0, len(tests))
     // for k := range tests {
     // 	keys = append(keys, k)
@@ -390,24 +394,28 @@ fn BenchmarkEncode(b1: testing::B) {
                 let test = TESTS.get(name).unwrap();
 
                 // settings for IED emulator
-                let ied: Emulator = createEmulator(test.samplingRate, 0.0);
+                let mut ied: Emulator = create_emulator(test.sampling_rate, 0.0);
 
                 // initialise data structure for input data
-                let data: Vec<DatasetWithQuality> =
-                    createInputData(ied, test.samples, test.countOfVariables, test.qualityChange);
+                let data: Vec<DatasetWithQuality> = create_input_data(
+                    &mut ied,
+                    test.samples,
+                    test.count_of_variables,
+                    test.quality_change,
+                );
 
                 // create encoder and decoder
                 let enc = NewEncoder(
                     ID,
-                    test.countOfVariables,
-                    test.samplingRate,
-                    test.samplesPerMessage,
+                    test.count_of_variables,
+                    test.sampling_rate,
+                    test.samples_per_message,
                 );
                 let dec = NewDecoder(
                     ID,
-                    test.countOfVariables,
-                    test.samplingRate,
-                    test.samplesPerMessage,
+                    test.count_of_variables,
+                    test.sampling_rate,
+                    test.samples_per_message,
                 );
 
                 // calling b.StartTimer() often slows things down
@@ -427,7 +435,7 @@ fn BenchmarkEncode(b1: testing::B) {
     });
 }
 
-fn BenchmarkDecode(b1: testing::B) {
+fn benchmark_decode(b1: testing::B) {
     // keys := make([]string, 0, len(tests))
     // for k := range tests {
     // 	keys = append(keys, k)
@@ -445,24 +453,28 @@ fn BenchmarkDecode(b1: testing::B) {
                 let test = TESTS.get(name).unwrap();
 
                 // settings for IED emulator
-                let ied: Emulator = createEmulator(test.samplingRate, 0.0);
+                let mut ied: Emulator = create_emulator(test.sampling_rate, 0.0);
 
                 // initialise data structure for input data
-                let data: Vec<DatasetWithQuality> =
-                    createInputData(ied, test.samples, test.countOfVariables, test.qualityChange);
+                let data: Vec<DatasetWithQuality> = create_input_data(
+                    &mut ied,
+                    test.samples,
+                    test.count_of_variables,
+                    test.quality_change,
+                );
 
                 // create encoder and decoder
                 let enc = NewEncoder(
                     ID,
-                    test.countOfVariables,
-                    test.samplingRate,
-                    test.samplesPerMessage,
+                    test.count_of_variables,
+                    test.sampling_rate,
+                    test.samples_per_message,
                 );
                 let dec = NewDecoder(
                     ID,
-                    test.countOfVariables,
-                    test.samplingRate,
-                    test.samplesPerMessage,
+                    test.count_of_variables,
+                    test.sampling_rate,
+                    test.samples_per_message,
                 );
 
                 // for d := range data {
@@ -480,17 +492,17 @@ fn BenchmarkDecode(b1: testing::B) {
     });
 }
 
-fn createInputData(
+fn create_input_data(
     ied: &mut Emulator,
     samples: usize,
-    countOfVariables: usize,
-    qualityChange: bool,
+    count_of_variables: usize,
+    quality_change: bool,
 ) -> Vec<DatasetWithQuality> {
     let mut data: Vec<DatasetWithQuality> = vec![DatasetWithQuality; samples];
     // for i := range data {
     data.iter_mut().for_each(|d| {
-        d.Int32s = vec![0; countOfVariables];
-        d.Q = vec![0; countOfVariables];
+        d.i32s = vec![0; count_of_variables];
+        d.q = vec![0; count_of_variables];
     });
 
     // generate data using IED emulator
@@ -498,53 +510,53 @@ fn createInputData(
     // for i := range data {
     data.iter_mut().for_each(|d| {
         // compute emulated waveform data
-        ied.Step();
+        ied.step();
 
         // calculate timestamp
-        d.T = (i as u64);
+        d.t = (i as u64);
 
         // set waveform data
-        d.Int32s[0] = (ied.I.A * 1000.0) as i32;
-        d.Int32s[1] = (ied.I.B * 1000.0) as i32;
-        d.Int32s[2] = (ied.I.C * 1000.0) as i32;
-        d.Int32s[3] = ((ied.I.A + ied.I.B + ied.I.C) * 1000.0) as i32;
-        d.Int32s[4] = (ied.V.A * 100.0) as i32;
-        d.Int32s[5] = (ied.V.B * 100.0) as i32;
-        d.Int32s[6] = (ied.V.C * 100.0) as i32;
-        d.Int32s[7] = ((ied.V.A + ied.V.B + ied.V.C) * 100.0) as i32;
+        d.i32s[0] = (ied.i.A * 1000.0) as i32;
+        d.i32s[1] = (ied.i.B * 1000.0) as i32;
+        d.i32s[2] = (ied.i.C * 1000.0) as i32;
+        d.i32s[3] = ((ied.i.A + ied.i.B + ied.i.C) * 1000.0) as i32;
+        d.i32s[4] = (ied.v.A * 100.0) as i32;
+        d.i32s[5] = (ied.v.B * 100.0) as i32;
+        d.i32s[6] = (ied.v.C * 100.0) as i32;
+        d.i32s[7] = ((ied.v.A + ied.v.B + ied.v.C) * 100.0) as i32;
 
         // set quality data
-        d.Q[0] = 0;
-        d.Q[1] = 0;
-        d.Q[2] = 0;
-        d.Q[3] = 0;
-        d.Q[4] = 0;
-        d.Q[5] = 0;
-        d.Q[6] = 0;
-        d.Q[7] = 0;
+        d.q[0] = 0;
+        d.q[1] = 0;
+        d.q[2] = 0;
+        d.q[3] = 0;
+        d.q[4] = 0;
+        d.q[5] = 0;
+        d.q[6] = 0;
+        d.q[7] = 0;
 
-        if qualityChange {
+        if quality_change {
             if i == 2 {
-                d.Q[0] = 1
+                d.q[0] = 1
             } else if i == 3 {
-                d.Q[0] = 0x41
+                d.q[0] = 0x41
             }
         }
     });
     data
 }
 
-fn createInputDataDualIED(
+fn create_input_data_dual_ied(
     ied1: &mut Emulator,
-    ied2: &Emulator,
+    ied2: &mut Emulator,
     samples: usize,
-    countOfVariables: usize,
-    qualityChange: bool,
+    count_of_variables: usize,
+    quality_change: bool,
 ) -> Vec<DatasetWithQuality> {
     let mut data: Vec<DatasetWithQuality> = vec![DatasetWithQuality; samples];
     data.iter_mut().for_each(|d| {
-        d.Int32s = vec![0; countOfVariables];
-        d.Q = vec![0; countOfVariables];
+        d.i32s = vec![0; count_of_variables];
+        d.q = vec![0; count_of_variables];
     });
 
     // generate data using IED emulator
@@ -552,143 +564,144 @@ fn createInputDataDualIED(
     // for i := range data {
     data.iter_mut().for_each(|d| {
         // compute emulated waveform data
-        ied1.Step();
-        ied2.Step();
+        ied1.step();
+        ied2.step();
 
         // calculate timestamp
-        d.T = (i as u64);
+        d.t = (i as u64);
 
         // set waveform data
-        d.Int32s[0] = (ied1.V.A * 100.0) as i32;
-        d.Int32s[1] = (ied1.V.B * 100.0) as i32;
-        d.Int32s[2] = (ied1.V.C * 100.0) as i32;
-        d.Int32s[3] = ((ied1.V.A + ied1.V.B + ied1.V.C) * 100.0) as i32;
-        d.Int32s[4] = (ied2.V.A * 100.0) as i32;
-        d.Int32s[5] = (ied2.V.B * 100.0) as i32;
-        d.Int32s[6] = (ied2.V.C * 100.0) as i32;
-        d.Int32s[7] = ((ied2.V.A + ied2.V.B + ied2.V.C) * 100.0) as i32;
+        d.i32s[0] = (ied1.v.A * 100.0) as i32;
+        d.i32s[1] = (ied1.v.B * 100.0) as i32;
+        d.i32s[2] = (ied1.v.C * 100.0) as i32;
+        d.i32s[3] = ((ied1.v.A + ied1.v.B + ied1.v.C) * 100.0) as i32;
+        d.i32s[4] = (ied2.v.A * 100.0) as i32;
+        d.i32s[5] = (ied2.v.B * 100.0) as i32;
+        d.i32s[6] = (ied2.v.C * 100.0) as i32;
+        d.i32s[7] = ((ied2.v.A + ied2.v.B + ied2.v.C) * 100.0) as i32;
 
-        d.Int32s[8] = (ied1.I.A * 1000.0) as i32;
-        d.Int32s[9] = (ied1.I.B * 1000.0) as i32;
-        d.Int32s[10] = (ied1.I.C * 1000.0) as i32;
-        d.Int32s[11] = ((ied1.I.A + ied1.I.B + ied1.I.C) * 1000.0) as i32;
-        d.Int32s[12] = (ied2.I.A * 1000.0) as i32;
-        d.Int32s[13] = (ied2.I.B * 1000.0) as i32;
-        d.Int32s[14] = (ied2.I.C * 1000.0) as i32;
-        d.Int32s[15] = ((ied2.I.A + ied2.I.B + ied2.I.C) * 1000.0) as i32;
+        d.i32s[8] = (ied1.i.A * 1000.0) as i32;
+        d.i32s[9] = (ied1.i.B * 1000.0) as i32;
+        d.i32s[10] = (ied1.i.C * 1000.0) as i32;
+        d.i32s[11] = ((ied1.i.A + ied1.i.B + ied1.i.C) * 1000.0) as i32;
+        d.i32s[12] = (ied2.i.A * 1000.0) as i32;
+        d.i32s[13] = (ied2.i.B * 1000.0) as i32;
+        d.i32s[14] = (ied2.i.C * 1000.0) as i32;
+        d.i32s[15] = ((ied2.i.A + ied2.i.B + ied2.i.C) * 1000.0) as i32;
 
         // set quality data
-        d.Q[0] = 0;
-        d.Q[1] = 0;
-        d.Q[2] = 0;
-        d.Q[3] = 0;
-        d.Q[4] = 0;
-        d.Q[5] = 0;
-        d.Q[6] = 0;
-        d.Q[7] = 0;
-        d.Q[8] = 0;
-        d.Q[9] = 0;
-        d.Q[10] = 0;
-        d.Q[11] = 0;
-        d.Q[12] = 0;
-        d.Q[13] = 0;
-        d.Q[14] = 0;
-        d.Q[15] = 0;
+        d.q[0] = 0;
+        d.q[1] = 0;
+        d.q[2] = 0;
+        d.q[3] = 0;
+        d.q[4] = 0;
+        d.q[5] = 0;
+        d.q[6] = 0;
+        d.q[7] = 0;
+        d.q[8] = 0;
+        d.q[9] = 0;
+        d.q[10] = 0;
+        d.q[11] = 0;
+        d.q[12] = 0;
+        d.q[13] = 0;
+        d.q[14] = 0;
+        d.q[15] = 0;
 
-        if qualityChange {
+        if quality_change {
             if i == 2 {
-                d.Q[0] = 1;
+                d.q[0] = 1;
             } else if i == 3 {
-                d.Q[0] = 0x41;
+                d.q[0] = 0x41;
             }
         }
     });
     data
 }
 
-struct encodeStats {
+struct EncodeStats {
     samples: usize,
     messages: usize,
-    totalBytes: usize,
-    totalHeaderBytes: usize,
+    total_bytes: usize,
+    total_header_bytes: usize,
 }
 
-const earlyEncodingStopSamples: usize = 100;
+const EARLY_ENCODING_STOP_SAMPLES: usize = 100;
 
-fn encodeAndDecode(
+fn encode_and_decode(
     t: &testing::T,
     data: &mut [DatasetWithQuality],
     enc: &mut Encoder,
     dec: &mut Decoder,
-    countOfVariables: usize,
-    samplesPerMessage: usize,
-    earlyEncodingStop: bool,
-) -> Result<encodeStats, String> {
-    let mut encodeStats = encodeStats {
+    _count_of_variables: usize,
+    _samples_per_message: usize,
+    early_encoding_stop: bool,
+) -> Result<EncodeStats, String> {
+    let mut encode_stats = EncodeStats {
         samples: 0,
         messages: 0,
-        totalBytes: 0,
-        totalHeaderBytes: 0,
+        total_bytes: 0,
+        total_header_bytes: 0,
     };
-    let mut totalSamplesRead = 0;
+    let mut total_samples_read = 0;
 
     for i in 0..data.len() {
         // data.iter_mut().for_each(|d| {
-        encodeStats.samples += 1;
-        let (buf, length) = enc.Encode(data[i])?;
+        encode_stats.samples += 1;
+        let (buf, length) = enc.encode(data.get_mut(i).unwrap())?;
 
         // simulate encoding stopping early
-        if earlyEncodingStop && length == 0 && i == (earlyEncodingStopSamples - 1) {
-            let (buf, length, _) = enc.EndEncode();
+        if early_encoding_stop && length == 0 && i == (EARLY_ENCODING_STOP_SAMPLES - 1) {
+            let (buf, length, _) = enc.end_encode();
         }
 
         if length > 0 {
             // generate average stats
-            encodeStats.messages += 1;
-            encodeStats.totalBytes += length;
-            encodeStats.totalHeaderBytes += 24;
+            encode_stats.messages += 1;
+            encode_stats.total_bytes += length;
+            encode_stats.total_header_bytes += 24;
 
-            dec.DecodeToBuffer(buf, length)?;
+            dec.decode_to_buffer(&buf, length)?;
 
             // compare decoded output
             if t != nil {
-                for i in 0..dec.Out.len() {
+                for i in 0..dec.out.len() {
                     // dec.Out.iter().for_each(|out| {
                     // only check up to samples encoded
-                    if earlyEncodingStop && i >= earlyEncodingStopSamples {
+                    if earlyEncodingStop && i >= EARLY_ENCODING_STOP_SAMPLES {
                         break;
                     }
 
-                    for j in 0..dec.Int32Count {
+                    for j in 0..dec.i32_count {
                         if !assert.Equal(
                             t,
-                            (*data)[totalSamplesRead + i].Int32s[j],
-                            dec.Out[i].Int32s[j],
+                            (*data)[total_samples_read + i].i32s[j],
+                            dec.out[i].i32s[j],
                         ) {
                             // fmt.Println("error at", i, j)
                             t.FailNow();
                         }
-                        // fmt.Println("fine at", i, j, (*data)[totalSamplesRead+i].Int32s[j], dec.Out[i].Int32s[j])
-                        if !assert.Equal(t, (*data)[totalSamplesRead + i].Q[j], dec.Out[i].Q[j]) {
-                            // fmt.Println("Q fail:", (*data)[totalSamplesRead+i].Q[j], dec.Out[i].Q[j], i, j)
+                        // fmt.Println("fine at", i, j, (*data)[total_samples_read+i].int32s[j], dec.Out[i].int32s[j])
+                        if !assert.Equal(t, (*data)[total_samples_read + i].q[j], dec.out[i].q[j]) {
+                            // fmt.Println("Q fail:", (*data)[total_samples_read+i].Q[j], dec.Out[i].Q[j], i, j)
                             t.FailNow();
                         }
                     }
                 }
             }
 
-            totalSamplesRead += enc.SamplesPerMessage;
+            total_samples_read += enc.samples_per_message;
 
             if earlyEncodingStop {
-                return Ok(encodeStats);
+                return Ok(encode_stats);
             }
         }
     }
 
-    Ok(encodeStats)
+    Ok(encode_stats)
 }
 
-pub fn TestEncodeDecode(t: testing::T) {
+#[test]
+pub fn test_encode_decode(t: testing::T) {
     // prepare table for presenting results
     let tab = table::Writer::new();
     tab.SetOutputMirror(os.Stdout);
@@ -720,84 +733,90 @@ pub fn TestEncodeDecode(t: testing::T) {
             let test = TESTS.get(name).unwrap();
 
             // settings for IED emulator
-            let ied: Emulator = createEmulator(test.samplingRate, 0.0);
+            let mut ied: Emulator = create_emulator(test.sampling_rate, 0.0);
 
             // initialise data structure for input data
-            let data: Vec<DatasetWithQuality> = if test.countOfVariables == 16 {
-                let ied2: Emulator = createEmulator(test.samplingRate, 0.0);
-                createInputDataDualIED(
-                    ied,
-                    ied2,
+            let mut data: Vec<DatasetWithQuality> = if test.count_of_variables == 16 {
+                let mut ied2: Emulator = create_emulator(test.sampling_rate, 0.0);
+                create_input_data_dual_ied(
+                    &mut ied,
+                    &mut ied2,
                     test.samples,
-                    test.countOfVariables,
-                    test.qualityChange,
+                    test.count_of_variables,
+                    test.quality_change,
                 )
             } else {
-                createInputData(ied, test.samples, test.countOfVariables, test.qualityChange)
+                create_input_data(
+                    &mut ied,
+                    test.samples,
+                    test.count_of_variables,
+                    test.quality_change,
+                )
             };
 
             // create encoder and decoder
             let mut stream = Encoder::new(
                 ID,
-                test.countOfVariables,
-                test.samplingRate,
-                test.samplesPerMessage,
+                test.count_of_variables,
+                test.sampling_rate,
+                test.samples_per_message,
             );
-            let mut streamDecoder = Decoder::new(
+            let mut stream_decoder = Decoder::new(
                 ID,
-                test.countOfVariables,
-                test.samplingRate,
-                test.samplesPerMessage,
+                test.count_of_variables,
+                test.sampling_rate,
+                test.samples_per_message,
             );
 
-            if test.useSpatialRefs {
-                stream.SetSpatialRefs(
-                    test.countOfVariables,
-                    test.countOfVariables / 8,
-                    test.countOfVariables / 8,
+            if test.use_spatial_refs {
+                stream.set_spatial_refs(
+                    test.count_of_variables,
+                    test.count_of_variables / 8,
+                    test.count_of_variables / 8,
                     true,
-                ); // TODO test includeNeutral
-                streamDecoder.SetSpatialRefs(
-                    test.countOfVariables,
-                    test.countOfVariables / 8,
-                    test.countOfVariables / 8,
+                ); // TODO test include_neutral
+                stream_decoder.set_spatial_refs(
+                    test.count_of_variables,
+                    test.count_of_variables / 8,
+                    test.count_of_variables / 8,
                     true,
-                ); // TODO test includeNeutral
+                ); // TODO test include_neutral
             }
 
             // encode the data
             // when each message is complete, decode
-            let (encodeStats, _) = encodeAndDecode(
+            let (encode_stats, _) = encode_and_decode(
                 t,
-                &data,
-                stream,
-                streamDecoder,
-                test.countOfVariables,
-                test.samplesPerMessage,
-                test.earlyEncodingStop,
+                &mut data,
+                &mut stream,
+                &mut stream_decoder,
+                test.count_of_variables,
+                test.samples_per_message,
+                test.early_encoding_stop,
             );
 
-            let theoryBytesPerMessage = if test.earlyEncodingStop {
-                test.countOfVariables * encodeStats.samples * 16
+            let theory_bytes_per_message = if test.early_encoding_stop {
+                test.count_of_variables * encode_stats.samples * 16
             } else {
-                test.countOfVariables * test.samplesPerMessage * 16
+                test.count_of_variables * test.samples_per_message * 16
             };
-            let meanBytesPerMessage =
-                (encodeStats.totalBytes as f64) / (encodeStats.messages as f64); // includes header overhead
-            let percent = 100.0 * (meanBytesPerMessage as f64) / (theoryBytesPerMessage as f64);
-            // meanBytesWithoutHeader := float64(encodeStats.totalBytes-encodeStats.totalHeaderBytes) / float64(encodeStats.iterations)
+            let mean_bytes_per_message =
+                (encode_stats.totalBytes as f64) / (encode_stats.messages as f64); // includes header overhead
+            let percent =
+                100.0 * (mean_bytes_per_message as f64) / (theory_bytes_per_message as f64);
+            // meanBytesWithoutHeader := float64(encode_stats.total_bytes-encode_stats.total_header_bytes) / float64(encode_stats.iterations)
 
             assert.LessOrEqual(t, percent, tests[name].expectedSize);
 
             tab.AppendRow([
-                encodeStats.samples,
+                encode_stats.samples,
                 tests[name].samplingRate,
                 tests[name].samplesPerMessage,
-                encodeStats.messages,
+                encode_stats.messages,
                 tests[name].qualityChange,
                 tests[name].earlyEncodingStop,
                 tests[name].useSpatialRefs,
-                format!("{:.1}", meanBytesPerMessage),
+                format!("{:.1}", mean_bytes_per_message),
                 format!("{:.1}", percent),
             ]);
             // tab.AppendSeparator()
@@ -809,43 +828,48 @@ pub fn TestEncodeDecode(t: testing::T) {
     // tab.RenderCSV()
 }
 
-fn TestWrongID(t: testing::T) {
+#[test]
+fn test_wrong_id(t: testing::T) {
     t.Run("wrong ID", |t: testing::T| {
         if let Some(test) = TESTS.get("a10-1") {
             // test := tests["a10-1"]
 
             // settings for IED emulator
-            let ied: Emulator = createEmulator(test.samplingRate, 0.0);
-            let wrongID: uuid::Uuid = uuid::Uuid::nil(); // FIXME
+            let mut ied: Emulator = create_emulator(test.sampling_rate, 0.0);
+            let wrong_id: uuid::Uuid = uuid::Uuid::new_v4();
 
             // initialise data structure for input data
-            let data: Vec<DatasetWithQuality> =
-                createInputData(ied, test.samples, test.countOfVariables, test.qualityChange);
+            let mut data: Vec<DatasetWithQuality> = create_input_data(
+                &mut ied,
+                test.samples,
+                test.count_of_variables,
+                test.quality_change,
+            );
 
             // create encoder and decoder
-            let stream = Encoder::new(
+            let mut stream = Encoder::new(
                 ID,
-                test.countOfVariables,
-                test.samplingRate,
-                test.samplesPerMessage,
+                test.count_of_variables,
+                test.sampling_rate,
+                test.samples_per_message,
             );
-            let streamDecoder = Decoder::new(
-                wrongID,
-                test.countOfVariables,
-                test.samplingRate,
-                test.samplesPerMessage,
+            let mut stream_decoder = Decoder::new(
+                wrong_id,
+                test.count_of_variables,
+                test.sampling_rate,
+                test.samples_per_message,
             );
 
             // encode the data
             // when each message is complete, decode
-            let err = encodeAndDecode(
+            let err = encode_and_decode(
                 t,
-                &data,
-                stream,
-                streamDecoder,
-                test.countOfVariables,
-                test.samplesPerMessage,
-                test.earlyEncodingStop,
+                &mut data,
+                &mut stream,
+                &mut stream_decoder,
+                test.count_of_variables,
+                test.samples_per_message,
+                test.early_encoding_stop,
             );
             assert.Equal(t, err.Error(), "IDs did not match");
         } else {

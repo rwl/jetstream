@@ -1,59 +1,59 @@
-use crate::encoding::simple8b;
+use crate::encoding::{bitops, simple8b};
 use crate::jetstream::{
-    createSpatialRefs, getDeltaEncoding, uvarint32, varint32, DatasetWithQuality,
-    Simple8bThresholdSamples, UseGzipThresholdSamples,
+    create_spatial_refs, get_delta_encoding, uvarint32, varint32, DatasetWithQuality,
+    SIMPLE8B_THRESHOLD_SAMPLES, USE_GZIP_THRESHOLD_SAMPLES,
 };
 use std::sync;
 
 /// A stream protocol instance for decoding.
 pub struct Decoder {
-    pub ID: uuid::Uuid,
-    pub SamplingRate: usize,
-    pub SamplesPerMessage: usize,
-    encodedSamples: usize,
-    pub Int32Count: usize,
-    gzBuf: bytebuffer::Buffer,
-    pub Out: Vec<DatasetWithQuality>,
-    startTimestamp: u64,
-    usingSimple8b: bool,
-    deltaEncodingLayers: usize,
-    deltaSum: Vec<Vec<i32>>,
+    pub id: uuid::Uuid,
+    pub sampling_rate: usize,
+    pub samples_per_message: usize,
+    encoded_samples: usize,
+    pub i32_count: usize,
+    gz_buf: bytebuffer::Buffer,
+    pub out: Vec<DatasetWithQuality>,
+    start_timestamp: u64,
+    using_simple8b: bool,
+    delta_encoding_layers: usize,
+    delta_sum: Vec<Vec<i32>>,
     mutex: sync::Mutex<usize>,
 
-    useXOR: bool,
-    spatialRef: Vec<isize>,
+    use_xor: bool,
+    spatial_ref: Vec<isize>,
 }
 
 impl Decoder {
     /// Creates a stream protocol decoder instance for pre-allocated output.
     pub fn new(
-        ID: uuid::Uuid,
-        int32Count: usize,
-        samplingRate: usize,
-        samplesPerMessage: usize,
+        id: uuid::Uuid,
+        i32_count: usize,
+        sampling_rate: usize,
+        samples_per_message: usize,
     ) -> Self {
         let mut d = Self {
-            ID: ID,
-            Int32Count: int32Count,
-            SamplingRate: samplingRate,
-            SamplesPerMessage: samplesPerMessage,
-            Out: vec![DatasetWithQuality; samplesPerMessage],
+            id,
+            i32_count,
+            sampling_rate,
+            samples_per_message,
+            out: vec![DatasetWithQuality; samples_per_message],
         };
 
-        // d.useXOR = true
+        // d.use_xor = true
 
-        if samplesPerMessage > Simple8bThresholdSamples {
-            d.usingSimple8b = true;
+        if samples_per_message > SIMPLE8B_THRESHOLD_SAMPLES {
+            d.using_simple8b = true;
         }
 
         // TODO make this conditional on message size to reduce memory use
-        let bufSize = samplesPerMessage * int32Count * 8 + int32Count * 4;
-        d.gzBuf = bytebuffer::ByteBuffer::from_bytes(&Vec::with_capacity(bufSize));
+        let buf_size = samples_per_message * i32_count * 8 + i32_count * 4;
+        d.gz_buf = bytebuffer::ByteBuffer::from_bytes(&Vec::with_capacity(buf_size));
 
-        d.deltaEncodingLayers = getDeltaEncoding(samplingRate);
+        d.delta_encoding_layers = get_delta_encoding(sampling_rate);
 
         // storage for delta-delta decoding
-        d.deltaSum = vec![vec![0; int32Count]; d.deltaEncodingLayers - 1];
+        d.delta_sum = vec![vec![0; i32_count]; d.delta_encoding_layers - 1];
         // d.deltaSum = make([][]int32, d.deltaEncodingLayers-1)
         // for i := range d.deltaSum {
         // 	d.deltaSum[i] = make([]int32, int32Count)
@@ -61,12 +61,12 @@ impl Decoder {
 
         // initialise each set of outputs in data stucture
         // for i := range d.Out {
-        d.Out.iter_mut().for_each(|out| {
-            out.Int32s = vec![0; int32Count];
-            out.Q = vec![0; int32Count];
+        d.out.iter_mut().for_each(|out| {
+            out.i32s = vec![0; i32_count];
+            out.q = vec![0; i32_count];
         });
 
-        d.spatialRef = vec![-1; int32Count];
+        d.spatial_ref = vec![-1; i32_count];
         // d.spatialRef = make([]int, int32Count)
         // for i := range d.spatialRef {
         // 	d.spatialRef[i] = -1
@@ -76,124 +76,125 @@ impl Decoder {
     }
 
     /// Use XOR delta instead of arithmetic delta.
-    pub fn SetXOR(&mut self, xor: bool) {
-        self.useXOR = xor
+    pub fn set_xor(&mut self, xor: bool) {
+        self.use_xor = xor
     }
 
     /// Automatically maps adjacent sets of three-phase currents for spatial compression.
-    pub fn SetSpatialRefs(
+    pub fn set_spatial_refs(
         &mut self,
         count: usize,
-        countV: usize,
-        countI: usize,
-        includeNeutral: bool,
+        count_v: usize,
+        count_i: usize,
+        include_neutral: bool,
     ) {
-        self.spatialRef = createSpatialRefs(count, countV, countI, includeNeutral);
+        self.spatial_ref = create_spatial_refs(count, count_v, count_i, include_neutral);
     }
 
-    // DecodeToBuffer decodes to a pre-allocated buffer
-    pub fn DecodeToBuffer(&mut self, buf: &[u8], totalLength: usize) -> Result<(), String> {
+    /// Decodes to a pre-allocated buffer.
+    pub fn decode_to_buffer(&mut self, buf: &[u8], _total_length: usize) -> Result<(), String> {
         self.mutex.lock();
         // TODO: defer self.mutex.Unlock()
 
         let mut length: usize = 16;
-        let mut valSigned: i32 = 0;
-        let mut valUnsigned: u32 = 0;
-        let mut lenB: usize = 0;
+        let mut _val_signed: i32 = 0;
+        let mut _val_unsigned: u32 = 0;
+        let mut _len_b: usize = 0;
 
         // check ID
-        let res = bytes.Compare(buf[..length], self.ID[..]);
+        let res = bytes.Compare(buf[..length], self.id[..]);
         if res != 0 {
             return Err("IDs did not match".to_string());
         }
 
         // decode timestamp
-        self.startTimestamp = binary.BigEndian.Uint64(buf[length..]);
+        self.start_timestamp = binary.BigEndian.Uint64(buf[length..]);
         length += 8;
 
         // the first timestamp is the starting value encoded in the header
-        self.Out[0].T = self.startTimestamp;
+        self.out[0].t = self.start_timestamp;
 
         // decode number of samples
-        let (valSigned, lenB) = varint32(&buf[length..]);
-        self.encodedSamples = valSigned as usize;
-        length += lenB;
+        let (val_signed, len_b) = varint32(&buf[length..]);
+        self.encoded_samples = val_signed as usize;
+        length += len_b;
 
-        let actualSamples = usize::min(self.encodedSamples, self.SamplesPerMessage);
+        let actual_samples = usize::min(self.encoded_samples, self.samples_per_message);
 
         // TODO inspect performance here
-        self.gzBuf.Reset();
-        if actualSamples > UseGzipThresholdSamples {
+        self.gz_buf.Reset();
+        if actual_samples > USE_GZIP_THRESHOLD_SAMPLES {
             let gr = gzip.NewReader(bytes.NewBuffer(&buf[length..]))?;
 
-            io.Copy(self.gzBuf, gr)?;
+            io.Copy(self.gz_buf, gr)?;
             // origLen, errRead := gr.Read((buf[length:]))
             gr.Close();
         } else {
-            self.gzBuf = bytes.NewBuffer(buf[length..]);
+            self.gz_buf = bytes.NewBuffer(buf[length..]);
         }
         // log.Debug().Int("gz len", totalLength).Int64("original len", origLen).Msg("decoding")
-        let outBytes = self.gzBuf.Bytes();
+        let out_bytes = self.gz_buf.Bytes();
         length = 0;
 
-        if self.usingSimple8b {
+        if self.using_simple8b {
             // for simple-8b encoding, iterate through every value
-            let mut decodeCounter = 0;
-            let mut indexTs = 0;
+            let mut decode_counter = 0;
+            let mut index_ts = 0;
             let mut i = 0;
 
-            let (decodedUnit64s, _) =
-                simple8b::ForEach(/*buf[length:]*/ outBytes[length..], |v: u64| -> bool {
+            let (decoded_u64s, _) = simple8b::for_each(
+                /*buf[length:]*/ out_bytes[length..],
+                |v: u64| -> bool {
                     // manage 2D slice indices
-                    indexTs = decodeCounter % actualSamples;
-                    if decodeCounter > 0 && indexTs == 0 {
+                    index_ts = decode_counter % actual_samples;
+                    if decode_counter > 0 && index_ts == 0 {
                         i += 1;
                     }
 
                     // get signed value back with zig-zag decoding
-                    let decodedValue = bitops.ZigZagDecode64(v) as i32;
+                    let decoded_value = bitops::zig_zag_decode64(v) as i32;
 
-                    if indexTs == 0 {
-                        self.Out[indexTs].Int32s[i] = decodedValue;
+                    if index_ts == 0 {
+                        self.out[index_ts].i32s[i] = decoded_value;
                     } else {
-                        self.Out[indexTs].T = indexTs as u64;
+                        self.out[index_ts].t = index_ts as u64;
 
                         // delta decoding
-                        let maxIndex = usize::min(indexTs, self.deltaEncodingLayers - 1) - 1;
-                        if self.useXOR {
-                            self.deltaSum[maxIndex][i] ^= decodedValue;
+                        let max_index = usize::min(index_ts, self.delta_encoding_layers - 1) - 1;
+                        if self.use_xor {
+                            self.delta_sum[max_index][i] ^= decoded_value;
                         } else {
-                            self.deltaSum[maxIndex][i] += decodedValue;
+                            self.delta_sum[max_index][i] += decoded_value;
                         }
 
                         // for k := maxIndex; k >= 1; k-- { TODO: check
-                        for k in (1..=maxIndex).rev() {
-                            if self.useXOR {
-                                self.deltaSum[k - 1][i] ^= self.deltaSum[k][i];
+                        for k in (1..=max_index).rev() {
+                            if self.use_xor {
+                                self.delta_sum[k - 1][i] ^= self.delta_sum[k][i];
                             } else {
-                                self.deltaSum[k - 1][i] += self.deltaSum[k][i];
+                                self.delta_sum[k - 1][i] += self.delta_sum[k][i];
                             }
                         }
 
-                        if self.useXOR {
-                            self.Out[indexTs].Int32s[i] =
-                                self.Out[indexTs - 1].Int32s[i] ^ self.deltaSum[0][i];
+                        if self.use_xor {
+                            self.out[index_ts].i32s[i] =
+                                self.out[index_ts - 1].i32s[i] ^ self.delta_sum[0][i];
                         } else {
-                            self.Out[indexTs].Int32s[i] =
-                                self.Out[indexTs - 1].Int32s[i] + self.deltaSum[0][i];
+                            self.out[index_ts].i32s[i] =
+                                self.out[index_ts - 1].i32s[i] + self.delta_sum[0][i];
                         }
                     }
 
-                    decodeCounter += 1;
+                    decode_counter += 1;
 
                     // all variables and timesteps have been decoded
-                    if decodeCounter == actualSamples * self.Int32Count {
+                    if decode_counter == actual_samples * self.i32_count {
                         // take care of spatial references (cannot do this piecemeal above because it disrupts the previous value history)
-                        for indexTs in 0..self.Out.len() {
-                            for i in 0..self.Out[indexTs].Int32s.len() {
-                                if self.spatialRef[i] >= 0 {
-                                    self.Out[indexTs].Int32s[i] +=
-                                        self.Out[indexTs].Int32s[self.spatialRef[i]];
+                        for indexTs in 0..self.out.len() {
+                            for i in 0..self.out[indexTs].i32s.len() {
+                                if self.spatial_ref[i] >= 0 {
+                                    self.out[indexTs].i32s[i] +=
+                                        self.out[indexTs].i32s[self.spatial_ref[i]];
                                 }
                             }
                         }
@@ -203,65 +204,67 @@ impl Decoder {
                     }
 
                     return true;
-                });
+                },
+            );
 
             // add length of decoded unit64 blocks (8 bytes each)
-            length += decodedUnit64s * 8;
+            length += decoded_u64s * 8;
         } else {
             // get first set of samples using delta-delta encoding
-            for i in 0..self.Int32Count {
-                let (valSigned, lenB) = varint32(/*buf[length:]*/ outBytes[length..]);
-                self.Out[0].Int32s[i] = int32(valSigned);
-                length += lenB;
+            for i in 0..self.i32_count {
+                let (val_signed, len_b) = varint32(/*buf[length:]*/ out_bytes[length..]);
+                self.out[0].i32s[i] = int32(val_signed);
+                length += len_b;
             }
 
             // decode remaining delta-delta encoded values
-            if actualSamples > 1 {
-                let mut totalSamples: usize = 1;
+            if actual_samples > 1 {
+                let mut total_samples: usize = 1;
                 loop {
                     // encode the sample number relative to the starting timestamp
-                    self.Out[totalSamples].T = totalSamples as u64;
+                    self.out[total_samples].t = total_samples as u64;
 
                     // delta decoding
-                    for i in 0..self.Int32Count {
-                        let (decodedValue, lenB) =
-                            varint32(/*buf[length:]*/ outBytes[length..]);
-                        length += lenB;
+                    for i in 0..self.i32_count {
+                        let (decoded_value, len_b) =
+                            varint32(/*buf[length:]*/ out_bytes[length..]);
+                        length += len_b;
 
-                        let maxIndex = usize::min(totalSamples, self.deltaEncodingLayers - 1) - 1;
-                        if self.useXOR {
-                            self.deltaSum[maxIndex][i] ^= decodedValue;
+                        let max_index =
+                            usize::min(total_samples, self.delta_encoding_layers - 1) - 1;
+                        if self.use_xor {
+                            self.delta_sum[max_index][i] ^= decoded_value;
                         } else {
-                            self.deltaSum[maxIndex][i] += decodedValue;
+                            self.delta_sum[max_index][i] += decoded_value;
                         }
 
                         // for k := maxIndex; k >= 1; k-- {
-                        for k in (1..=maxIndex).rev() {
-                            if self.useXOR {
-                                self.deltaSum[k - 1][i] ^= self.deltaSum[k][i];
+                        for k in (1..=max_index).rev() {
+                            if self.use_xor {
+                                self.delta_sum[k - 1][i] ^= self.delta_sum[k][i];
                             } else {
-                                self.deltaSum[k - 1][i] += self.deltaSum[k][i];
+                                self.delta_sum[k - 1][i] += self.delta_sum[k][i];
                             }
                         }
 
-                        if self.useXOR {
-                            self.Out[totalSamples].Int32s[i] =
-                                self.Out[totalSamples - 1].Int32s[i] ^ self.deltaSum[0][i];
+                        if self.use_xor {
+                            self.out[total_samples].i32s[i] =
+                                self.out[total_samples - 1].i32s[i] ^ self.delta_sum[0][i];
                         } else {
-                            self.Out[totalSamples].Int32s[i] =
-                                self.Out[totalSamples - 1].Int32s[i] + self.deltaSum[0][i];
+                            self.out[total_samples].i32s[i] =
+                                self.out[total_samples - 1].i32s[i] + self.delta_sum[0][i];
                         }
                     }
-                    totalSamples += 1;
+                    total_samples += 1;
 
-                    if totalSamples >= actualSamples {
+                    if total_samples >= actual_samples {
                         // take care of spatial references (cannot do this piecemeal above because it disrupts the previous value history)
-                        for indexTs in 0..self.Out.len() {
-                            for i in 0..self.Out[indexTs].Int32s.len() {
+                        for index_ts in 0..self.out.len() {
+                            for i in 0..self.out[index_ts].i32s.len() {
                                 // skip the first time index
-                                if self.spatialRef[i] >= 0 {
-                                    self.Out[indexTs].Int32s[i] +=
-                                        self.Out[indexTs].Int32s[self.spatialRef[i]];
+                                if self.spatial_ref[i] >= 0 {
+                                    self.out[index_ts].i32s[i] +=
+                                        self.out[index_ts].i32s[self.spatial_ref[i]];
                                 }
                             }
                         }
@@ -274,37 +277,37 @@ impl Decoder {
         }
 
         // populate quality structure
-        for i in 0..self.Int32Count {
-            let mut sampleNumber = 0;
-            while sampleNumber < actualSamples {
-                let (valUnsigned, lenB) = uvarint32(/*buf[length:]*/ outBytes[length..]);
-                length += lenB;
-                self.Out[sampleNumber].Q[i] = valUnsigned as u32;
+        for i in 0..self.i32_count {
+            let mut sample_number = 0;
+            while sample_number < actual_samples {
+                let (val_unsigned, len_b) = uvarint32(/*buf[length:]*/ out_bytes[length..]);
+                length += len_b;
+                self.out[sample_number].q[i] = val_unsigned as u32;
 
-                let (valUnsigned, lenB) = uvarint32(/*buf[length:]*/ outBytes[length..]);
-                length += lenB;
+                let (val_unsigned, len_b) = uvarint32(/*buf[length:]*/ out_bytes[length..]);
+                length += len_b;
 
-                if valUnsigned == 0 {
+                if val_unsigned == 0 {
                     // write all remaining Q values for this variable
-                    for j in sampleNumber + 1..self.Out.len() {
-                        self.Out[j].Q[i] = self.Out[sampleNumber].Q[i]
+                    for j in sample_number + 1..self.out.len() {
+                        self.out[j].q[i] = self.out[sample_number].q[i]
                     }
-                    sampleNumber = actualSamples;
+                    sample_number = actual_samples;
                 } else {
-                    // write up to valUnsigned remaining Q values for this variable
-                    for j in (sampleNumber + 1)..(valUnsigned as usize) {
-                        if sampleNumber < self.Out.len() && j < self.Out.len() {
-                            self.Out[j].Q[i] = self.Out[sampleNumber].Q[i];
+                    // write up to val_unsigned remaining Q values for this variable
+                    for j in (sample_number + 1)..(val_unsigned as usize) {
+                        if sample_number < self.out.len() && j < self.out.len() {
+                            self.out[j].q[i] = self.out[sample_number].q[i];
                         }
                     }
-                    sampleNumber += valUnsigned as usize
+                    sample_number += val_unsigned as usize
                 }
             }
         }
 
-        for j in 0..self.deltaSum.len() {
-            for i in 0..self.Int32Count {
-                self.deltaSum[j][i] = 0
+        for j in 0..self.delta_sum.len() {
+            for i in 0..self.i32_count {
+                self.delta_sum[j][i] = 0
             }
         }
 
