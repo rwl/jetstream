@@ -19,8 +19,7 @@ pub mod emulator;
 mod encoder;
 mod encoding;
 mod jetstream;
-#[cfg(test)]
-mod test;
+pub mod test;
 
 pub use decoder::Decoder;
 pub use encoder::Encoder;

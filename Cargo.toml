@@ -11,3 +11,8 @@ uuid = { version = "1.2.1", features = ["v4"] }
 bytebuffer = "2.0.1"
 lazy_static = "1.4.0"
 rasciigraph = "0.1.1"
+flate2 = "1.0.25"
+rand_distr = "0.4.3"
+log = { version = "0.4.17", features = ["kv_unstable_std"] }
+tabwriter = "1.2.1"
+

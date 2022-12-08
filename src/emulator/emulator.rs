@@ -1,3 +1,5 @@
+use rand::{thread_rng, Rng};
+use rand_distr::StandardNormal;
 use std::f64::consts::PI;
 
 // Emulated event types
@@ -28,6 +30,7 @@ pub const EMULATED_FAULT_CURRENT_MAGNITUDE: usize = 80;
 
 pub const TWO_PI_OVER_THREE: f64 = 2.0 * PI / 3.0;
 
+#[derive(Default)]
 pub struct ThreePhaseEmulation {
     // inputs
     pub pos_seq_mag: f64,
@@ -51,7 +54,7 @@ pub struct ThreePhaseEmulation {
     pub pos_seq_mag_ramp_rate: f64,
 
     // internal state
-    p_angle: f64,
+    pub p_angle: f64, // todo: private
 
     // outputs
     pub a: f64,
@@ -59,32 +62,7 @@ pub struct ThreePhaseEmulation {
     pub c: f64,
 }
 
-impl Default for ThreePhaseEmulation {
-    fn default() -> Self {
-        Self {
-            pos_seq_mag: 0.0,
-            phase_offset: 0.0,
-            neg_seq_mag: 0.0,
-            neg_seq_ang: 0.0,
-            zero_seq_mag: 0.0,
-            zero_seq_ang: 0.0,
-            harmonic_numbers: vec![],
-            harmonic_mags: vec![],
-            harmonic_angs: vec![],
-            noise_max: 0.0,
-            fault_phase_a_mag: 0.0,
-            fault_pos_seq_mag: 0.0,
-            fault_remaining_samples: 0,
-            pos_seq_mag_new: 0.0,
-            pos_seq_mag_ramp_rate: 0.0,
-            p_angle: 0.0,
-            a: 0.0,
-            b: 0.0,
-            c: 0.0,
-        }
-    }
-}
-
+#[derive(Default)]
 pub struct TemperatureEmulation {
     pub mean_temperature: f64,
     pub noise_max: f64,
@@ -106,6 +84,7 @@ pub struct TemperatureEmulation {
     pub t: f64,
 }
 
+#[derive(Default)]
 pub struct SagEmulation {
     pub mean_strain: f64,
     pub mean_sag: f64,
@@ -134,15 +113,12 @@ pub struct Emulator {
     // common state
     pub smp_cnt: usize,
     deviation_remaining_samples: usize,
-
-    r: Box<dyn rand::Rng>,
+    // r: Box<dyn rand::Rng>,
 }
-
-// impl Default for Emulator {}
 
 fn wrap_angle(a: f64) -> f64 {
     if a > PI {
-        a - 2 * PI
+        a - 2.0 * PI
     } else {
         a
     }
@@ -217,7 +193,7 @@ impl Emulator {
             smp_cnt: 0,
             deviation_remaining_samples: 0,
             // r: rand.New(rand.NewSource(time.Now().Unix())),
-            r: Box::new(rand::thread_rng()),
+            // r: Box::new(rand::thread_rng()),
         }
     }
 
@@ -233,16 +209,16 @@ impl Emulator {
         }
 
         if let Some(v) = self.v.as_mut() {
-            v.step_three_phase(&self.r, f, self.ts, self.smp_cnt);
+            v.step_three_phase(/*&mut self.r,*/ f, self.ts, self.smp_cnt);
         }
         if let Some(i) = self.i.as_mut() {
-            i.step_three_phase(&self.r, f, self.ts, self.smp_cnt);
+            i.step_three_phase(/*&mut self.r,*/ f, self.ts, self.smp_cnt);
         }
         if let Some(t) = self.t.as_mut() {
-            t.step_temperature(&self.r, self.ts);
+            t.step_temperature(/*&mut self.r,*/ self.ts);
         }
         if let Some(sag) = self.sag.as_mut() {
-            sag.step_sag(&self.r);
+            sag.step_sag(/*&mut self.r*/);
         }
 
         self.smp_cnt += 1;
@@ -253,8 +229,8 @@ impl Emulator {
 }
 
 impl TemperatureEmulation {
-    fn step_temperature(&mut self, r: &Box<dyn rand::Rng>, ts: f64) {
-        let varying_t = self.mean_temperature * (1 + self.modulation_mag * f64::cos(1000.0 * ts));
+    fn step_temperature(&mut self, /*r: &mut Box<dyn rand::Rng>,*/ ts: f64) {
+        let varying_t = self.mean_temperature * (1.0 + self.modulation_mag * f64::cos(1000.0 * ts));
 
         let mut trend_anomaly_delta = 0.0;
         let trend_anomaly_step =
@@ -268,32 +244,41 @@ impl TemperatureEmulation {
                     (self.trend_anomaly_index as f64) * trend_anomaly_step * (-1.0)
             }
 
-            if self.trend_anomaly_index == int(float64(self.trend_anomaly_duration) / ts) - 1 {
+            if self.trend_anomaly_index == ((self.trend_anomaly_duration as f64) / ts) as usize - 1
+            {
                 self.trend_anomaly_index = 0;
             } else {
                 self.trend_anomaly_index += 1;
             }
         }
 
-        let instantaneous_anomaly_delta = if self.instantaneous_anomaly_probability > rand.Float64()
-        {
-            self.is_instantaneous_anomaly = true;
-            self.instantaneous_anomaly_magnitude
-        } else {
-            self.is_instantaneous_anomaly = false;
-            0.0
-        };
+        let instantaneous_anomaly_delta =
+            if self.instantaneous_anomaly_probability > thread_rng().gen::<f64>() {
+                self.is_instantaneous_anomaly = true;
+                self.instantaneous_anomaly_magnitude
+            } else {
+                self.is_instantaneous_anomaly = false;
+                0.0
+            };
 
         let total_anomaly_delta = trend_anomaly_delta + instantaneous_anomaly_delta;
 
+        // let norm: f64 = thread_rng().sample::<f64, StandardNormal>(StandardNormal);
         self.t = varying_t
-            + r.NormFloat64() * self.noise_max * self.mean_temperature
+            + thread_rng().sample::<f64, StandardNormal>(StandardNormal)
+                * self.noise_max
+                * self.mean_temperature
             + total_anomaly_delta;
     }
 }
 
 impl ThreePhaseEmulation {
-    fn step_three_phase(&mut self, r: &Box<dyn rand::Rng>, f: f64, ts: f64, _smp_cnt: usize) {
+    fn step_three_phase(
+        &mut self,
+        /*r: &mut Box<dyn rand::Rng>,*/ f: f64,
+        ts: f64,
+        _smp_cnt: usize,
+    ) {
         let angle = (f * 2.0 * PI * ts + self.p_angle);
         let angle = wrap_angle(angle);
         self.p_angle = angle;
@@ -351,10 +336,15 @@ impl ThreePhaseEmulation {
             }
         }
 
+        let mut r = thread_rng();
+
         // add noise, ensure worst case where noise is uncorrelated across phases
-        let ra = r.NormFloat64() * self.noise_max * self.pos_seq_mag;
-        let rb = r.NormFloat64() * self.noise_max * self.pos_seq_mag;
-        let rc = r.NormFloat64() * self.noise_max * self.pos_seq_mag;
+        let ra: f64 =
+            r.sample::<f64, StandardNormal>(StandardNormal) * self.noise_max * self.pos_seq_mag;
+        let rb: f64 =
+            r.sample::<f64, StandardNormal>(StandardNormal) * self.noise_max * self.pos_seq_mag;
+        let rc: f64 =
+            r.sample::<f64, StandardNormal>(StandardNormal) * self.noise_max * self.pos_seq_mag;
 
         // combine the output for each phase
         self.a = a1 + a2 + abc0 + ah + ra;
@@ -364,10 +354,11 @@ impl ThreePhaseEmulation {
 }
 
 impl SagEmulation {
-    fn step_sag(&mut self, r: &Box<dyn rand::Rng>) {
-        r.Seed(time.Now().UnixNano());
-        self.total_strain = self.mean_strain * r.Float64();
-        self.sag = self.mean_sag * r.Float64();
-        self.calculated_temperature = self.mean_calculated_temperature * r.Float64();
+    fn step_sag(&mut self /*, r: &mut Box<dyn rand::Rng>*/) {
+        let mut r = thread_rng();
+        // r.Seed(time.Now().UnixNano());
+        self.total_strain = self.mean_strain * r.gen::<f64>();
+        self.sag = self.mean_sag * r.gen::<f64>();
+        self.calculated_temperature = self.mean_calculated_temperature * r.gen::<f64>();
     }
 }

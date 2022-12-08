@@ -1,10 +1,13 @@
 use crate::encoding::{bitops, simple8b};
 use crate::jetstream::*;
 use bytebuffer::ByteBuffer;
+use flate2::write::GzEncoder;
+use flate2::Compression;
+use log::{as_error, error};
+use std::borrow::Borrow;
+use std::io::{Read, Write};
 use std::sync;
 use uuid::Uuid;
-
-type byte = u8;
 
 // Encoder defines a stream protocol instance
 pub struct Encoder {
@@ -12,11 +15,11 @@ pub struct Encoder {
     pub sampling_rate: usize,
     pub samples_per_message: usize,
     pub i32_count: usize,
-    buf: Vec<byte>,
-    buf_a: Vec<byte>,
-    buf_b: Vec<byte>,
-    out_buf_a: bytebuffer::Buffer,
-    out_buf_b: bytebuffer::Buffer,
+    // buf: Vec<u8>,
+    buf_a: Vec<u8>,
+    buf_b: Vec<u8>,
+    // out_buf_a: bytebuffer::ByteBuffer,
+    // out_buf_b: bytebuffer::ByteBuffer,
     use_buf_a: bool,
     len: usize,
     encoded_samples: usize,
@@ -38,7 +41,7 @@ pub struct Encoder {
 impl Encoder {
     /// Creates a stream protocol encoder instance.
     pub fn new(
-        id: uuid::UUID,
+        id: uuid::Uuid,
         i32_count: usize,
         sampling_rate: usize,
         samples_per_message: usize,
@@ -46,54 +49,46 @@ impl Encoder {
         // estimate maximum buffer space required
         let buf_size = MAX_HEADER_SIZE + samples_per_message * i32_count * 8 + i32_count * 4;
 
-        let mut s = Self {
-            id,
-            sampling_rate,
-            samples_per_message,
-            buf_a: vec![0; buf_size],
-            buf_b: vec![0; buf_size],
-            i32_count,
-            simple8b_values: vec![0; samples_per_message],
-        };
-
         // s.use_xor = true
 
         // initialise ping-pong buffer
-        s.use_buf_a = true;
-        s.buf = s.buf_a;
+        // s.use_buf_a = true;
+        // s.buf = s.buf_a;
 
         // TODO make this conditional on message size to reduce memory use
         // s.out_buf_a = bytes.NewBuffer(make([]byte, 0, buf_size))
-        s.out_buf_a = ByteBuffer::from_bytes(&Vec::with_capacity(buf_size));
-        s.out_buf_b = ByteBuffer::from_bytes(&Vec::with_capacity(buf_size));
+        // s.out_buf_a = ByteBuffer::from_bytes(&Vec::with_capacity(buf_size));
+        // s.out_buf_b = ByteBuffer::from_bytes(&Vec::with_capacity(buf_size));
 
-        s.delta_encoding_layers = get_delta_encoding(sampling_rate);
+        let delta_encoding_layers = get_delta_encoding(sampling_rate);
 
-        if samples_per_message > SIMPLE8B_THRESHOLD_SAMPLES {
-            s.using_simple8b = true;
-            s.diffs = vec![vec![0; samples_per_message]; i32_count];
-        // s.diffs = make([][]uint64, int32count)
-        // for i := range s.diffs {
-        // 	s.diffs[i] = make([]uint64, samples_per_message)
+        let using_simple8b = samples_per_message > SIMPLE8B_THRESHOLD_SAMPLES;
+
+        // if samples_per_message > SIMPLE8B_THRESHOLD_SAMPLES {
+        //     s.using_simple8b = true;
+        //     s.diffs = vec![vec![0; samples_per_message]; i32_count];
+        // // s.diffs = make([][]uint64, int32count)
+        // // for i := range s.diffs {
+        // // 	s.diffs[i] = make([]uint64, samples_per_message)
+        // // }
+        // } else {
+        //     s.values = vec![vec![0; i32_count]; samples_per_message];
+        //     // s.values = make([][]int32, samples_per_message)
+        //     // for i := range s.values {
+        //     // 	s.values[i] = make([]int32, int32count)
+        //     // }
         // }
-        } else {
-            s.values = vec![vec![0; i32_count]; samples_per_message];
-            // s.values = make([][]int32, samples_per_message)
-            // for i := range s.values {
-            // 	s.values[i] = make([]int32, int32count)
-            // }
-        }
 
         // storage for delta-delta encoding
-        s.prev_data = vec![Dataset; s.delta_encoding_layers];
-        s.prev_data.iter_mut().for_each(|prev_data| {
-            prev_data[i].Int32s = vec![0; i32_count];
-        });
-        s.delta_n = vec![0; s.delta_encoding_layers];
+        // s.prev_data = vec![Dataset::new(i32_count); s.delta_encoding_layers];
+        // s.prev_data.iter_mut().for_each(|prev_data| {
+        //     prev_data[i].Int32s = vec![0; i32_count];
+        // });
+        // s.delta_n = vec![0; s.delta_encoding_layers];
 
         // s.quality_history = make([][]quality_history, int32count)
-        s.quality_history = vec![Vec::with_capacity(16); i32_count];
-        s.quality_history.iter_mut().for_each(|history| {
+        let mut quality_history = vec![Vec::with_capacity(16); i32_count];
+        quality_history.iter_mut().for_each(|history| {
             history.push(QualityHistory {
                 value: 0,
                 samples: 0,
@@ -106,13 +101,68 @@ impl Encoder {
         // 	s.quality_history[i][0].samples = 0
         // }
 
-        s.spatial_ref = vec![-1; i32_count];
+        // s.spatial_ref = vec![-1; i32_count];
         // s.spatial_ref = make([]int, int32count)
         // for i := range s.spatial_ref {
         // 	s.spatial_ref[i] = -1
         // }
 
-        s
+        Self {
+            id,
+            sampling_rate,
+            samples_per_message,
+            i32_count,
+
+            buf_a: vec![0; buf_size],
+            buf_b: vec![0; buf_size],
+
+            // out_buf_a: ByteBuffer::from_bytes(&Vec::with_capacity(buf_size)),
+            // out_buf_b: ByteBuffer::from_bytes(&Vec::with_capacity(buf_size)),
+
+            // initialise ping-pong buffer
+            use_buf_a: true,
+            // buf: vec![], // FIXME: buf_a,
+            len: 0,
+            encoded_samples: 0,
+            using_simple8b,
+            delta_encoding_layers,
+
+            simple8b_values: vec![0; samples_per_message],
+            prev_data: vec![Dataset::new(i32_count); delta_encoding_layers],
+            delta_n: vec![0; delta_encoding_layers],
+
+            quality_history,
+            diffs: if using_simple8b {
+                vec![vec![0; samples_per_message]; i32_count]
+            } else {
+                vec![]
+            },
+            values: if !using_simple8b {
+                vec![vec![0; i32_count]; samples_per_message]
+            } else {
+                vec![]
+            },
+            mutex: sync::Mutex::new(0),
+
+            use_xor: false,
+            spatial_ref: vec![-1; i32_count],
+        }
+    }
+
+    fn buf(&self) -> &Vec<u8> {
+        if self.use_buf_a {
+            &self.buf_a
+        } else {
+            &self.buf_b
+        }
+    }
+
+    fn buf_mut(&mut self) -> &mut Vec<u8> {
+        if self.use_buf_a {
+            &mut self.buf_a
+        } else {
+            &mut self.buf_b
+        }
     }
 
     /// Use XOR delta instead of arithmetic delta.
@@ -140,7 +190,7 @@ impl Encoder {
     }
 
     /// Encodes the next set of samples. It is called iteratively until the pre-defined number of samples are provided.
-    pub fn encode(&mut self, data: &mut DatasetWithQuality) -> Result<(Vec<byte>, usize), String> {
+    pub fn encode(&mut self, data: &mut DatasetWithQuality) -> Result<(Vec<u8>, usize), String> {
         self.mutex.lock();
         // TODO: defer s.mutex.Unlock()
 
@@ -148,11 +198,16 @@ impl Encoder {
         if self.encoded_samples == 0 {
             self.len = 0;
             // self.len += copy(self.buf[self.len:], self.ID[:])
-            self.buf[self.len..].copy_from_slice(self.id);
-            self.len += self.id.as_bytes().len();
+            let id_bytes = self.id.as_bytes().clone();
+            self.buf_mut()[/*self.len*/0..].copy_from_slice(&id_bytes);
+            // self.len += self.id.as_bytes().len();
+            self.len += id_bytes.len();
 
             // encode timestamp
-            binary.BigEndian.PutUint64(self.buf[self.len..], data.t);
+            // binary.BigEndian.PutUint64(self.buf[self.len..], data.t);
+            // self.buf[self.len..] = data.t.to_be_bytes(); // TODO: double check
+            let len = self.len;
+            self.buf_mut()[len..len + 8].copy_from_slice(&data.t.to_be_bytes());
             self.len += 8;
 
             // record first set of quality
@@ -182,7 +237,7 @@ impl Encoder {
 
             // check if another data stream is to be used the spatial reference
             if self.spatial_ref[i] >= 0 {
-                val -= data.i32s[self.spatial_ref[i]]
+                val -= data.i32s[self.spatial_ref[i] as usize]
             }
 
             // prepare data for delta encoding
@@ -222,12 +277,12 @@ impl Encoder {
         if self.encoded_samples >= self.samples_per_message {
             self._end_encode()
         } else {
-            Ok((nil, 0))
+            Ok((vec![], 0))
         }
     }
 
     /// Ends the encoding early, and completes the buffer so far
-    pub fn end_encode(&mut self) -> Result<(Vec<byte>, usize), String> {
+    pub fn end_encode(&mut self) -> Result<(Vec<u8>, usize), String> {
         self.mutex.lock();
         // TODO: defer s.mutex.Unlock()
 
@@ -258,14 +313,16 @@ impl Encoder {
         // send data and swap ping-pong buffer
         if self.use_buf_a {
             self.use_buf_a = false;
-            self.buf = self.buf_b;
+            // self.buf = self.buf_b; // FIXME: buf reference
         }
     }
 
     // internal version does not need the mutex
-    fn _end_encode(&mut self) -> Result<(Vec<byte>, usize), String> {
+    fn _end_encode(&mut self) -> Result<(Vec<u8>, usize), String> {
         // write encoded samples
-        self.len += put_varint32(&mut self.buf[self.len..], self.encoded_samples as i32);
+        let len = self.len;
+        let encoded_samples = self.encoded_samples as i32;
+        self.len += put_varint32(&mut self.buf_mut()[len..], encoded_samples as i32);
         let mut actual_header_len = self.len;
 
         if self.using_simple8b {
@@ -273,10 +330,11 @@ impl Encoder {
                 // ensure slice only contains up to self.encoded_samples
                 let actual_samples = usize::min(self.encoded_samples, self.samples_per_message);
 
-                let (number_of_simple8b, _) = simple8b::encode_all_ref(
+                let number_of_simple8b = simple8b::encode_all_ref(
                     &mut self.simple8b_values,
                     &self.diffs[i][..actual_samples],
-                );
+                )
+                .unwrap_or(0);
 
                 // calculate efficiency of simple8b
                 // multiply number of simple8b units by 2 because input is 32-bit, output is 64-bit
@@ -284,34 +342,44 @@ impl Encoder {
                 // fmt.Println("simple8b efficiency:", simple8bRatio)
 
                 for j in 0..number_of_simple8b {
-                    binary
-                        .BigEndian
-                        .PutUint64(self.buf[self.len..], self.simple8b_values[j]);
+                    // binary.BigEndian.PutUint64(self.buf[self.len..], self.simple8b_values[j]);
+                    let len = self.len;
+                    let simple8b_values = self.simple8b_values[j].to_be_bytes();
+                    self.buf_mut()[len..len + 8].copy_from_slice(&simple8b_values);
+                    // self.buf[self.len..] = *self.simple8b_values[j].to_be_bytes(); // TODO: double check
                     self.len += 8;
                 }
             }
         } else {
             for i in 0..self.encoded_samples {
                 for j in 0..self.i32_count {
-                    self.len += put_varint32(&mut self.buf[self.len..], self.values[i][j])
+                    let len = self.len;
+                    let value = self.values[i][j];
+                    self.len += put_varint32(&mut self.buf_mut()[len..], value);
                 }
             }
         }
 
         // encode final quality values using RLE
-        // for i := range self.quality_history {
-        self.quality_history.iter_mut().for_each(|history| {
-            let n_sample = len(self.quality_history[i]);
+        for i in 0..self.quality_history.len() {
+            // self.quality_history.iter_mut().for_each(|history| {
             // override final number of samples to zero
-            history[n_sample - 1].samples = 0; // TODO: .last
+            // let n_sample = self.quality_history[i].len();
+            // history[n_sample - 1].samples = 0;
+            self.quality_history[i].last_mut().unwrap().samples = 0;
 
             // otherwise, encode each value
-            // for j := range self.quality_history[i] {
-            history.iter().for_each(|sample| {
-                self.len += put_uvarint32(&mut self.buf[self.len..], sample.value);
-                self.len += put_uvarint32(&mut self.buf[self.len..], sample.samples);
-            });
-        });
+            for j in 0..self.quality_history[i].len() {
+                // history.iter().for_each(|sample| {
+                let len = self.len;
+                let value = self.quality_history[i][j].value;
+                self.len += put_uvarint32(&mut self.buf_mut()[len..], value);
+
+                let len = self.len;
+                let samples = self.quality_history[i][j].samples;
+                self.len += put_uvarint32(&mut self.buf_mut()[len..], samples);
+            }
+        }
 
         // reset quality history
         // for i := range self.quality_history {
@@ -336,37 +404,53 @@ impl Encoder {
 
         // experiment with gzip
         // TODO determine if buf_a/buf_b can be replaced with this internal double buffering
-        let active_out_buf = if !self.use_buf_a {
-            self.out_buf_b
-        } else {
-            self.out_buf_a
-        };
+        // let active_out_buf = if !self.use_buf_a {
+        //     &mut self.out_buf_b
+        // } else {
+        //     &mut self.out_buf_a
+        // };
 
         // TODO inspect performance here
-        active_out_buf.Reset();
-        if self.encoded_samples > USE_GZIP_THRESHOLD_SAMPLES {
+        // active_out_buf.clear();
+        let out_buf = if self.encoded_samples > USE_GZIP_THRESHOLD_SAMPLES {
             // do not compress header
-            active_out_buf.Write(self.buf[..actual_header_len]);
+            // active_out_buf.write(&self.buf()[..actual_header_len]);
+            // let header = &self.buf()[..actual_header_len];
+            // active_out_buf.write(header);
+            let mut out_buf = self.buf()[..actual_header_len].to_vec();
 
-            let (gz, _) = gzip.NewWriterLevel(active_out_buf, gzip.BestCompression); // can test entropy coding by using gzip.HuffmanOnly
-            if let Err(err) = gz.Write(self.buf[actual_header_len..self.len]) {
-                log.Error().Err(err).Msg("could not write gz");
+            // let (gz, _) = gzip.NewWriterLevel(active_out_buf, gzip.BestCompression); // can test entropy coding by using gzip.HuffmanOnly
+            let mut gz = GzEncoder::new(out_buf, Compression::best());
+            if let Err(err) = gz.write(&self.buf()[actual_header_len..self.len]) {
+                error!(err = as_error!(err); "could not write gz");
             }
-            if let Err(err) = gz.Close() {
-                log.Error().Err(err).Msg("could not close gz");
-            };
+            // if let Err(err) = gz.finish() {
+            //     error!(err = as_error!(err); "could not close gz");
+            // };
 
-            // ensure that gzip size is never greater that input for all input sizes
-            if active_out_buf.Len() > self.len && self.encoded_samples == self.samples_per_message {
-                log.Error()
-                    .Int("gz", active_out_buf.Len())
-                    .Int("original", self.len)
-                    .Int("SamplesPerMessage", self.samples_per_message)
-                    .Msg("gzip encoding length greater")
+            match gz.finish() {
+                Err(err) => {
+                    error!(err = as_error!(err); "could not close gz");
+                    vec![]
+                }
+                Ok(out_buf) => {
+                    // ensure that gzip size is never greater that input for all input sizes
+                    if out_buf.len() > self.len && self.encoded_samples == self.samples_per_message
+                    {
+                        error!(
+                            gz = out_buf.len(),
+                            original = self.len,
+                            samples_per_message = self.samples_per_message;
+                            "gzip encoding length greater"
+                        );
+                    }
+                    out_buf
+                }
             }
         } else {
-            active_out_buf.Write(self.buf[..self.len]);
-        }
+            // active_out_buf.write(&self.buf()[..self.len]);
+            self.buf()[..self.len].to_vec()
+        };
 
         // reset previous values
         // finalLen = self.len
@@ -374,16 +458,19 @@ impl Encoder {
         self.len = 0;
 
         // send data and swap ping-pong buffer
+        // let out_bytes = out_buf.as_bytes().to_vec();
         if self.use_buf_a {
             self.use_buf_a = false;
-            self.buf = self.buf_b;
-            return Ok((active_out_buf.Bytes(), active_out_buf.Len()));
+            // self.buf = self.buf_b;
+            // Ok((active_out_buf.as_bytes().to_vec(), active_out_buf.len()))
             // return Ok((self.buf_a[..finalLen], finalLen))
+        } else {
+            self.use_buf_a = true;
+            // self.buf = self.buf_a;
+            // Ok((active_out_buf.as_bytes().to_vec(), active_out_buf.len()))
+            // return self.buf_b[0:finalLen], finalLen, nil
         }
-
-        self.use_buf_a = true;
-        self.buf = self.buf_a;
-        Ok((active_out_buf.Bytes(), active_out_buf.Len()))
-        // return self.buf_b[0:finalLen], finalLen, nil
+        let len = out_buf.len();
+        Ok((out_buf, len))
     }
 }

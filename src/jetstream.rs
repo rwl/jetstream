@@ -14,18 +14,39 @@ pub const MAX_HEADER_SIZE: usize = 36;
 pub const USE_GZIP_THRESHOLD_SAMPLES: usize = 4096;
 
 /// Lists of variables to be encoded.
+#[derive(Clone)]
 pub struct Dataset {
     pub i32s: Vec<i32>,
     // can extend with other data types
 }
 
+impl Dataset {
+    pub(crate) fn new(count: usize) -> Self {
+        Self {
+            i32s: vec![0; count],
+        }
+    }
+}
+
 /// Lists of decoded variables with a timestamp and quality
+#[derive(Clone)]
 pub struct DatasetWithQuality {
     pub t: u64,
     pub i32s: Vec<i32>,
     pub q: Vec<u32>,
 }
 
+impl DatasetWithQuality {
+    pub fn new(count: usize) -> Self {
+        Self {
+            t: 0,
+            i32s: vec![0; count],
+            q: vec![0; count],
+        }
+    }
+}
+
+#[derive(Clone)]
 pub(crate) struct QualityHistory {
     pub(crate) value: u32,
     pub(crate) samples: u32,
@@ -62,6 +83,8 @@ pub(crate) fn get_delta_encoding(sampling_rate: usize) -> usize {
     }
 }
 
+// TODO: Use "integer-encoding" crate
+
 /// Copied from encoding/binary/varint.go to provide 32-bit version to avoid casting.
 pub(crate) fn uvarint32(buf: &[u8]) -> (u32, usize) {
     let mut x: u32 = 0;
@@ -70,11 +93,12 @@ pub(crate) fn uvarint32(buf: &[u8]) -> (u32, usize) {
         let b = buf[i];
         if b < 0x80 {
             if i > 9 || i == 9 && b > 1 {
-                return (0, -(i + 1)); // overflow
+                panic!("uvarint32: overflow")
+                // return (0, -(i + 1)); // overflow  FIXME: Result
             }
-            return (x | u32(b) << s, i + 1);
+            return (x | (b as u32) << s, i + 1);
         }
-        x |= uint32(b & 0x7f) << s;
+        x |= ((b & 0x7f) as u32) << s;
         s += 7
     }
     (0, 0)
@@ -89,8 +113,8 @@ pub(crate) fn varint32(buf: &[u8]) -> (i32, usize) {
     (x, n)
 }
 
-/// Encodes a uint64 into buf and returns the number of bytes written.
-/// If the buffer is too small, PutUvarint will panic.
+/// Encodes a `u32` into `buf` and returns the number of bytes written.
+/// If the buffer is too small, `put_uvarint32` will panic.
 pub(crate) fn put_uvarint32(buf: &mut [u8], mut x: u32) -> usize {
     let mut i = 0;
     while x >= 0x80 {
@@ -103,8 +127,8 @@ pub(crate) fn put_uvarint32(buf: &mut [u8], mut x: u32) -> usize {
     i + 1
 }
 
-/// Encodes an int64 into buf and returns the number of bytes written.
-/// If the buffer is too small, putVarint will panic.
+/// Encodes an `i32` into `buf` and returns the number of bytes written.
+/// If the buffer is too small, `put_varint32` will panic.
 pub(crate) fn put_varint32(buf: &mut [u8], x: i32) -> usize {
     let mut ux = (x as u32) << 1;
     if x < 0 {

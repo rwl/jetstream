@@ -35,10 +35,8 @@ fn main() {
     // loop through data samples and encode into Slipstream format
     // for d in 0..data.len() {
     data.iter_mut().for_each(|d| {
-        let (buf, length, err) = enc.encode(d);
-
         // check if message encoding has finished (or an error occurred)
-        if err == nil && length > 0 {
+        if let Some((buf, length)) = enc.encode(d).unwrap() {
             // buf should now contain an encoded message, and can be send over the network or stored
 
             // print encoding performance results
@@ -59,10 +57,10 @@ fn main() {
             );
 
             // decode the message
-            let err_decode = dec.decode_to_buffer(buf, length);
+            dec.decode_to_buffer(&buf, length).unwrap();
 
             // iterate through the decoded samples
-            if err_decode == nil {
+            {
                 let mut decoded_data = vec![0.0; samples_to_encode];
                 for i in 0..dec.out.len() {
                     // extract the phase A current values (at index '0') and convert to Amps
@@ -83,7 +81,7 @@ fn main() {
                     decoded_data,
                     Config::default().with_height(10).with_width(80),
                 );
-                println!(graph);
+                println!("{}", graph);
             }
         }
     });
@@ -100,11 +98,11 @@ fn create_input_data(
     // 	data[i].int32s = make([]int32, count_of_variables)
     // 	data[i].Q = make([]uint32, count_of_variables)
     // }
-    let mut data: Vec<DatasetWithQuality> = vec![DatasetWithQuality; samples];
-    data.iter_mut().for_each(|d| {
-        d.i32s = vec![0; count_of_variables];
-        d.q = vec![0; count_of_variables];
-    });
+    let mut data = vec![DatasetWithQuality::new(count_of_variables); samples];
+    // data.iter_mut().for_each(|d| {
+    //     d.i32s = vec![0; count_of_variables];
+    //     d.q = vec![0; count_of_variables];
+    // });
 
     // generate data using IED emulator
     // the timestamp is a simple integer counter, starting from 0
@@ -121,14 +119,14 @@ fn create_input_data(
         let v = ied.v.as_mut().unwrap();
 
         // set waveform data for current and voltage
-        d.i32s[0] = (i.A * 1000.0) as i32;
-        d.i32s[1] = (i.B * 1000.0) as i32;
-        d.i32s[2] = (i.C * 1000.0) as i32;
-        d.i32s[3] = ((i.A + i.B + i.C) * 1000.0) as i32;
-        d.i32s[4] = (v.A * 100.0) as i32;
-        d.i32s[5] = (v.B * 100.0) as i32;
-        d.i32s[6] = (v.C * 100.0) as i32;
-        d.i32s[7] = ((v.A + v.B + v.C) * 100.0) as i32;
+        d.i32s[0] = (i.a * 1000.0) as i32;
+        d.i32s[1] = (i.b * 1000.0) as i32;
+        d.i32s[2] = (i.c * 1000.0) as i32;
+        d.i32s[3] = ((i.a + i.b + i.c) * 1000.0) as i32;
+        d.i32s[4] = (v.a * 100.0) as i32;
+        d.i32s[5] = (v.b * 100.0) as i32;
+        d.i32s[6] = (v.c * 100.0) as i32;
+        d.i32s[7] = ((v.a + v.b + v.c) * 100.0) as i32;
 
         // set quality data
         d.q[0] = 0;

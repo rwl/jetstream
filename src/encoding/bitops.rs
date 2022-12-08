@@ -31,16 +31,17 @@ pub(crate) fn msb32(mut x: u32) -> usize {
 
 // Returns the number of bits required to store the value x.
 fn msb64(n: u64) -> usize {
-    if n <= 0 {
-        return -1;
-    }
+    // if n <= 0 {
+    //     return -1;
+    // }
+    assert!(n > 0);
     let mut r: usize = 0;
     let mut v: usize = 0;
     if n >= 1 << 32 {
         r += 32;
-        v = uint(n >> 32);
+        v = (n >> 32) as usize;
     } else {
-        v = uint(n);
+        v = n as usize;
     }
     if v >= 1 << 16 {
         r += 16;
@@ -63,9 +64,9 @@ fn msb64(n: u64) -> usize {
 }
 
 pub fn zig_zag_encode64(x: i64) -> u64 {
-    u64(u64(x << 1) ^ u64((i64(x) >> 63)))
+    ((x << 1) as u64 ^ ((x as i64) >> 63) as u64) as u64
 }
 
 pub fn zig_zag_decode64(v: u64) -> i64 {
-    i64((v >> 1) ^ u64((i64(v & 1) << 63) >> 63))
+    ((v >> 1) ^ ((((v & 1) as i64) << 63) >> 63) as u64) as i64
 }

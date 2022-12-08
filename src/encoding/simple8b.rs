@@ -1,3 +1,6 @@
+use rand_distr::num_traits::ToPrimitive;
+use std::borrow::Borrow;
+
 /// Package simple8b implements the 64bit integer encoding algoritm as published
 /// by Ann and Moffat in "Index compression using 64-bit words", Softw. Pract. Exper. 2010; 40:131–147
 ///
@@ -35,8 +38,8 @@ pub struct Encoder {
     bp: usize,
 
     // current bytes written and flushed
-    bytes: Vec<byte>,
-    b: Vec<byte>,
+    bytes: Vec<u8>,
+    b: Vec<u8>,
 }
 
 impl Encoder {
@@ -53,8 +56,9 @@ impl Encoder {
     }
 
     pub fn set_values(&mut self, v: Vec<u64>) {
+        let len = v.len();
         self.buf = v;
-        self.t = v.len();
+        self.t = len;
         self.h = 0;
         // e.bytes = e.bytes[:0]
         self.bytes.clear()
@@ -78,7 +82,8 @@ impl Encoder {
         // The buf is full but there is space at the front, just shift
         // the values down for now. TODO: use ring buffer
         if self.t >= self.buf.len() {
-            self.buf.copy_from_slice(&self.buf[self.h..]);
+            // self.buf.copy_from_slice(&self.buf[self.h..]);
+            self.buf.drain(0..self.h);
             self.t -= self.h;
             self.h = 0;
         }
@@ -93,11 +98,14 @@ impl Encoder {
         }
 
         // encode as many values into one as we can
-        let (encoded, n) = encode(self.buf[self.h..self.t])?;
+        let (encoded, n) = encode(&self.buf[self.h..self.t])?;
 
-        binary.BigEndian.PutUint64(self.b, encoded);
+        // binary.BigEndian.PutUint64(self.b, encoded);
+        // self.b = encoded.to_be_bytes().to_vec();
+        self.b.copy_from_slice(encoded.to_be_bytes().borrow()); // TODO: double check
         if self.bp + 8 > self.bytes.len() {
-            self.bytes.extend(self.b[..]);
+            // self.bytes.extend(self.b[..]);
+            self.bytes.extend(&self.b);
             self.bp = self.bytes.len();
         } else {
             self.bytes[self.bp..self.bp + 8].copy_from_slice(&self.b);
@@ -138,7 +146,7 @@ impl Decoder {
     pub fn new(bytes: Vec<u8>) -> Self {
         Self {
             bytes,
-            buf: [u64; 240],
+            buf: [0u64; 240],
             i: 0,
             n: 0,
         }
@@ -150,16 +158,16 @@ impl Decoder {
         self.i += 1;
 
         if self.i >= self.n {
-            self.read()
+            self.read();
         }
 
         self.bytes.len() >= 8 || (self.i >= 0 && self.i < self.n)
     }
 
     pub fn set_bytes(&mut self, b: Vec<u8>) {
-        d.bytes = b;
-        d.i = 0;
-        d.n = 0;
+        self.bytes = b;
+        self.i = 0;
+        self.n = 0;
     }
 
     /// Returns the current value. Successive calls to `read` return the same value.
@@ -173,9 +181,11 @@ impl Decoder {
             return;
         }
 
-        let v = binary.BigEndian.Uint64(self.bytes[..8]);
-        self.bytes = self.bytes[8..];
-        let (n, _) = decode(&self.buf, v);
+        // let v = binary.BigEndian.Uint64(self.bytes[..8]);
+        let v = u64::from_be_bytes(self.bytes[..8].try_into().unwrap());
+        // self.bytes = self.bytes.[8..];
+        self.bytes.drain(0..8);
+        let n = decode(&mut self.buf, v).unwrap_or(0);
         self.n = n;
         self.i = 0;
     }
@@ -291,10 +301,11 @@ const SELECTOR: [Packing; 16] = [
 pub fn count_bytes(mut b: &[u8]) -> Result<usize, String> {
     let mut count = 0;
     while b.len() >= 8 {
-        let v = binary.BigEndian.Uint64(b[..8]);
+        // let v = binary.BigEndian.Uint64(b[..8]);
+        let v = u64::from_be_bytes(b[..8].try_into().unwrap());
         b = &b[8..];
 
-        let sel = v >> 60;
+        let sel = (v >> 60).to_usize().unwrap();
         if sel >= 16 {
             return Err(format!("invalid selector value: {}", sel));
         }
@@ -309,21 +320,32 @@ pub fn count_bytes(mut b: &[u8]) -> Result<usize, String> {
 
 /// Returns the number of integers encoded within an u64.
 pub fn count(v: u64) -> Result<usize, String> {
-    let sel = v >> 60;
+    let sel = (v >> 60).to_usize().unwrap();
     if sel >= 16 {
         return Err(format!("invalid selector value: {}", sel));
     }
     Ok(SELECTOR[sel].n)
 }
 
-pub fn for_each(mut b: &[u8], fn_: fn(v: u64) -> bool) -> Result<usize, String> {
+pub trait DecodeEach {
+    // Return true to continue decoding.
+    fn call(&self, v: u64) -> bool;
+}
+
+// pub fn for_each(mut b: &[u8], fn_: fn(v: u64) -> bool) -> Result<usize, String> {
+//     pub fn for_each<F: DecodeEach>(mut b: &[u8], f: F) -> Result<usize, String> {
+pub fn for_each<F>(mut b: &[u8], f: F) -> Result<usize, String>
+where
+    F: FnMut(u64) -> bool,
+{
     let mut count = 0;
     while b.len() >= 8 {
-        let v = binary.BigEndian.Uint64(b[..8]);
+        // let v = binary.BigEndian.Uint64(b[..8]);
+        let mut v = u64::from_be_bytes(b[..8].try_into().unwrap());
         b = &b[8..];
         count += 1;
 
-        let sel = v >> 60;
+        let sel = (v >> 60).to_usize().unwrap();
         if sel >= 16 {
             return Err(format!("invalid selector value: {}", sel));
         }
@@ -334,13 +356,13 @@ pub fn for_each(mut b: &[u8], fn_: fn(v: u64) -> bool) -> Result<usize, String> 
         // let mask = uint64(^(int64(^0) << bits))
         unimplemented!("mask"); // FIXME
 
-        for i in 0..n {
-            let val = v & mask;
-            if !fn_(val) {
-                Ok(count)
-            }
-            v = v >> bits
-        }
+        // for i in 0..n {
+        //     let val = v & mask;
+        //     if !f.call(val) {
+        //         Ok(count)
+        //     }
+        //     v = v >> bits
+        // }
     }
     Ok(count)
 }
@@ -348,10 +370,11 @@ pub fn for_each(mut b: &[u8], fn_: fn(v: u64) -> bool) -> Result<usize, String> 
 pub fn count_bytes_between(mut b: &[u8], min: u64, max: u64) -> Result<usize, String> {
     let mut count = 0;
     while b.len() >= 8 {
-        let v = binary.BigEndian.Uint64(&b[..8]);
+        // let v = binary.BigEndian.Uint64(&b[..8]);
+        let v = u64::from_be_bytes(b[..8].try_into().unwrap());
         b = &b[8..];
 
-        let sel = v >> 60;
+        let sel = (v >> 60).to_usize().unwrap();
         if sel >= 16 {
             return Err(format!("invalid selector value: {}", sel));
         }
@@ -365,16 +388,16 @@ pub fn count_bytes_between(mut b: &[u8], min: u64, max: u64) -> Result<usize, St
         // mask := uint64(^(int64(^0) << uint(selector[sel].bit)))
         unimplemented!("mask"); // FIXME
 
-        for i in 0..SELECTOR[sel].n {
-            let val = v & mask;
-            if val >= min && val < max {
-                count += 1;
-            } else if val > max {
-                break;
-            }
-
-            v = v >> SELECTOR[sel].bit; // as usize
-        }
+        // for i in 0..SELECTOR[sel].n {
+        //     let val = v & mask;
+        //     if val >= min && val < max {
+        //         count += 1;
+        //     } else if val > max {
+        //         break;
+        //     }
+        //
+        //     v = v >> SELECTOR[sel].bit; // as usize
+        // }
     }
 
     if b.len() > 0 {
@@ -498,7 +521,7 @@ pub fn encode_all(src: &[u64]) -> Result<Vec<u64>, String> {
         }
         j += 1;
     }
-    Ok(&dst[..j])
+    Ok(dst[..j].to_vec())
 }
 
 /// Returns a packed slice of the values from src.  If a value is over
@@ -520,46 +543,46 @@ pub fn encode_all_ref(dst: &mut [u64], src: &[u64]) -> Result<usize, String> {
             (*dst)[j] = 1 << 60;
             i += 120;
         } else if can_pack(remaining, 60, 1) {
-            (*dst)[j] = pack60(src[i: i + 60]);
+            (*dst)[j] = pack60(&src[i..i + 60]);
             i += 60;
         } else if can_pack(remaining, 30, 2) {
-            (*dst)[j] = pack30(src[i: i + 30]);
+            (*dst)[j] = pack30(&src[i..i + 30]);
             i += 30;
         } else if can_pack(remaining, 20, 3) {
-            (*dst)[j] = pack20(src[i: i + 20]);
+            (*dst)[j] = pack20(&src[i..i + 20]);
             i += 20;
         } else if can_pack(remaining, 15, 4) {
-            (*dst)[j] = pack15(src[i: i + 15]);
+            (*dst)[j] = pack15(&src[i..i + 15]);
             i += 15;
         } else if can_pack(remaining, 12, 5) {
-            (*dst)[j] = pack12(src[i: i + 12]);
+            (*dst)[j] = pack12(&src[i..i + 12]);
             i += 12;
         } else if can_pack(remaining, 10, 6) {
-            (*dst)[j] = pack10(src[i: i + 10]);
+            (*dst)[j] = pack10(&src[i..i + 10]);
             i += 10;
         } else if can_pack(remaining, 8, 7) {
-            (*dst)[j] = pack8(src[i: i + 8]);
+            (*dst)[j] = pack8(&src[i..i + 8]);
             i += 8;
         } else if can_pack(remaining, 7, 8) {
-            (*dst)[j] = pack7(src[i: i + 7]);
+            (*dst)[j] = pack7(&src[i..i + 7]);
             i += 7;
         } else if can_pack(remaining, 6, 10) {
-            (*dst)[j] = pack6(src[i: i + 6]);
+            (*dst)[j] = pack6(&src[i..i + 6]);
             i += 6;
         } else if can_pack(remaining, 5, 12) {
-            (*dst)[j] = pack5(src[i: i + 5]);
+            (*dst)[j] = pack5(&src[i..i + 5]);
             i += 5;
         } else if can_pack(remaining, 4, 15) {
-            (*dst)[j] = pack4(src[i: i + 4]);
+            (*dst)[j] = pack4(&src[i..i + 4]);
             i += 4;
         } else if can_pack(remaining, 3, 20) {
-            (*dst)[j] = pack3(src[i: i + 3]);
+            (*dst)[j] = pack3(&src[i..i + 3]);
             i += 3;
         } else if can_pack(remaining, 2, 30) {
-            (*dst)[j] = pack2(src[i: i + 2]);
+            (*dst)[j] = pack2(&src[i..i + 2]);
             i += 2;
         } else if can_pack(remaining, 1, 60) {
-            (*dst)[j] = pack1(src[i: i + 1]);
+            (*dst)[j] = pack1(&src[i..i + 1]);
             i += 1;
         } else {
             return Err("value out of bounds".to_string());
@@ -570,11 +593,12 @@ pub fn encode_all_ref(dst: &mut [u64], src: &[u64]) -> Result<usize, String> {
 }
 
 pub fn decode(dst: &mut [u64; 240], v: u64) -> Result<usize, String> {
-    let sel = v >> 60;
+    let sel = (v >> 60).to_usize().unwrap();
     if sel >= 16 {
         return Err(format!("invalid selector value: {}", sel));
     }
-    SELECTOR[sel].unpack(v, dst);
+    let unpack = SELECTOR[sel].unpack;
+    unpack(v, dst);
     Ok(SELECTOR[sel].n)
 }
 
@@ -583,7 +607,7 @@ pub fn decode(dst: &mut [u64; 240], v: u64) -> Result<usize, String> {
 pub fn decode_all(dst: &mut [u64], src: &[u64]) -> Result<usize, String> {
     let mut j = 0;
     src.iter().try_for_each(|v| {
-        let sel = v >> 60;
+        let sel = (v >> 60).to_usize().unwrap();
         if sel >= 16 {
             return Err(format!("invalid selector value: {}", sel));
         }
