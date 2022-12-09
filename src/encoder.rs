@@ -1,15 +1,12 @@
 use crate::encoding::{bitops, simple8b};
 use crate::jetstream::*;
-use bytebuffer::ByteBuffer;
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use log::{as_error, error};
-use std::borrow::Borrow;
-use std::io::{Read, Write};
-use std::sync;
+use std::io::Write;
 use uuid::Uuid;
 
-// Encoder defines a stream protocol instance
+/// Encoder defines a stream protocol instance
 pub struct Encoder {
     pub id: Uuid,
     pub sampling_rate: usize,
@@ -32,8 +29,7 @@ pub struct Encoder {
     quality_history: Vec<Vec<QualityHistory>>,
     diffs: Vec<Vec<u64>>,
     values: Vec<Vec<i32>>,
-    mutex: sync::Mutex<usize>,
-
+    // mutex: sync::Mutex<()>,
     use_xor: bool,
     spatial_ref: Vec<isize>,
 }
@@ -142,8 +138,7 @@ impl Encoder {
             } else {
                 vec![]
             },
-            mutex: sync::Mutex::new(0),
-
+            // mutex: sync::Mutex::new(()),
             use_xor: false,
             spatial_ref: vec![-1; i32_count],
         }
@@ -191,8 +186,7 @@ impl Encoder {
 
     /// Encodes the next set of samples. It is called iteratively until the pre-defined number of samples are provided.
     pub fn encode(&mut self, data: &mut DatasetWithQuality) -> Result<(Vec<u8>, usize), String> {
-        self.mutex.lock();
-        // TODO: defer s.mutex.Unlock()
+        // let _lock = self.mutex.lock().unwrap();
 
         // encode header and prepare quality values
         if self.encoded_samples == 0 {
@@ -283,16 +277,14 @@ impl Encoder {
 
     /// Ends the encoding early, and completes the buffer so far
     pub fn end_encode(&mut self) -> Result<(Vec<u8>, usize), String> {
-        self.mutex.lock();
-        // TODO: defer s.mutex.Unlock()
+        // let _lock = self.mutex.lock().unwrap();
 
         self._end_encode()
     }
 
     /// Ends the encoding early, but does not write to the file.
     pub fn cancel_encode(&mut self) {
-        self.mutex.lock();
-        // TODO: defer s.mutex.Unlock()
+        // let _lock = self.mutex.lock().unwrap();
 
         // reset quality history
         self.quality_history.iter_mut().for_each(|history| {
@@ -323,7 +315,7 @@ impl Encoder {
         let len = self.len;
         let encoded_samples = self.encoded_samples as i32;
         self.len += put_varint32(&mut self.buf_mut()[len..], encoded_samples as i32);
-        let mut actual_header_len = self.len;
+        let actual_header_len = self.len;
 
         if self.using_simple8b {
             for i in 0..self.diffs.len() {
@@ -417,7 +409,7 @@ impl Encoder {
             // active_out_buf.write(&self.buf()[..actual_header_len]);
             // let header = &self.buf()[..actual_header_len];
             // active_out_buf.write(header);
-            let mut out_buf = self.buf()[..actual_header_len].to_vec();
+            let out_buf = self.buf()[..actual_header_len].to_vec();
 
             // let (gz, _) = gzip.NewWriterLevel(active_out_buf, gzip.BestCompression); // can test entropy coding by using gzip.HuffmanOnly
             let mut gz = GzEncoder::new(out_buf, Compression::best());

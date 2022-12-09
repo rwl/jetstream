@@ -324,7 +324,7 @@ fn create_input_data(
         ied.step();
 
         // calculate timestamp
-        d.t = (k as u64);
+        d.t = k as u64;
 
         let i = ied.i.as_ref().unwrap();
         let v = ied.v.as_ref().unwrap();
@@ -382,7 +382,7 @@ fn create_input_data_dual_ied(
         ied2.step();
 
         // calculate timestamp
-        d.t = (k as u64);
+        d.t = k as u64;
 
         let i1 = ied1.i.as_ref().unwrap();
         let v1 = ied1.v.as_ref().unwrap();
@@ -654,7 +654,8 @@ pub fn test_encode_decode() {
             test.use_spatial_refs,
             mean_bytes_per_message,
             percent
-        );
+        )
+        .unwrap();
     });
 
     // show table of results

@@ -171,8 +171,8 @@ impl Emulator {
                 self.deviation_remaining_samples = MAX_EMULATED_FREQUENCY_DURATION_SAMPLES;
             }
             EventType::CapacitorOverCurrent => {
+                // todo
                 let i = self.i.as_mut().unwrap();
-                todo!("CapacitorOverCurrent");
                 i.fault_pos_seq_mag = i.pos_seq_mag * 0.01;
                 i.fault_remaining_samples = MAX_EMULATED_CAPACITOR_OVER_CURRENT_SAMPLES;
             }
@@ -279,7 +279,7 @@ impl ThreePhaseEmulation {
         ts: f64,
         _smp_cnt: usize,
     ) {
-        let angle = (f * 2.0 * PI * ts + self.p_angle);
+        let angle = f * 2.0 * PI * ts + self.p_angle;
         let angle = wrap_angle(angle);
         self.p_angle = angle;
 

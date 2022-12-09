@@ -16,10 +16,7 @@ fn test_encode_no_values() {
 #[test]
 fn test_too_big() {
     let values = 1;
-    let mut inp: Vec<u64> = vec![0; values];
-    for i in 0..values {
-        inp[i] = 2 << 61 - 1;
-    }
+    let inp: Vec<u64> = vec![2 << 61 - 1; values];
     simple8b::encode_all(&inp).expect_err("expected \"too big\" error");
 }
 
@@ -125,10 +122,9 @@ fn test_encode_1() {
 
 fn test_encode(n: usize, val: u64) {
     let mut enc = simple8b::Encoder::new();
-    let mut inp = vec![0; n];
+    let inp = vec![val; n];
     for i in 0..n {
-        inp[i] = val;
-        enc.write(inp[i]);
+        enc.write(inp[i]).unwrap();
     }
 
     let encoded = enc.bytes().unwrap();
@@ -173,12 +169,12 @@ fn test_encode(n: usize, val: u64) {
 fn test_bytes() {
     let mut enc = simple8b::Encoder::new();
     for i in 0..30 {
-        enc.write(i as u64);
+        enc.write(i as u64).unwrap();
     }
     let b = enc.bytes().unwrap();
 
     let mut dec = simple8b::Decoder::new(b);
-    let mut x = (0 as u64);
+    let mut x = 0 as u64;
     while dec.next() {
         if x != dec.read() {
             panic!("mismatch: got {}, exp {}", dec.read(), x);
@@ -188,20 +184,20 @@ fn test_bytes() {
 }
 
 #[test]
-fn test_encode__value_too_large() {
+fn test_encode_value_too_large() {
     let mut enc = simple8b::Encoder::new();
 
     let values: [u64; 2] = [1442369134000000000, 0];
 
     values.iter().for_each(|&v| {
-        enc.write(v);
+        enc.write(v).unwrap();
     });
 
     enc.bytes().expect_err("expected \"value too large\" error");
 }
 
 #[test]
-fn test_decode__not_enough_bytes() {
+fn test_decode_not_enough_bytes() {
     let mut dec = simple8b::Decoder::new(vec![]);
     assert!(
         !dec.next(),
@@ -215,7 +211,7 @@ fn test_count_bytes_between() {
     let mut inp: Vec<u64> = vec![0; 8];
     for i in 0..inp.len() {
         inp[i] = i as u64;
-        enc.write(inp[i]);
+        enc.write(inp[i]).unwrap();
     }
 
     let encoded = enc.bytes().unwrap();
@@ -251,15 +247,15 @@ fn test_count_bytes_between() {
 }
 
 #[test]
-fn test_count_bytes_between__skip_min() {
+fn test_count_bytes_between_skip_min() {
     let mut enc = simple8b::Encoder::new();
     let mut inp: Vec<u64> = vec![0; 8];
     for i in 0..inp.len() {
-        inp[i] = (i as u64);
-        enc.write(inp[i]);
+        inp[i] = i as u64;
+        enc.write(inp[i]).unwrap();
     }
     inp.push(100000);
-    enc.write(100000);
+    enc.write(100000).unwrap();
 
     let encoded = enc.bytes().unwrap();
 

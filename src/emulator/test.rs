@@ -44,7 +44,7 @@ fn mean(values: &[f64]) -> f64 {
 }
 
 #[test]
-fn test_temperature_emulation_anomalies__no_anomalies() {
+fn test_temperature_emulation_no_anomalies() {
     let mut emulator = create_emulator(14400, 0.0);
 
     emulator
@@ -63,7 +63,7 @@ fn test_temperature_emulation_anomalies__no_anomalies() {
 }
 
 #[test]
-fn test_temperature_emulation_anomalies__anomalies() {
+fn test_temperature_emulation_anomalies() {
     let mut emulator = create_emulator(14400, 0.0);
 
     emulator
@@ -97,7 +97,7 @@ fn test_temperature_emulation_anomalies__anomalies() {
 }
 
 #[test]
-fn test_temperature_emulation_anomalies__rising_trend() {
+fn test_temperature_emulation_rising_trend() {
     let mut emulator = create_emulator(14400, 0.0);
     let t = emulator.t.as_mut().unwrap();
     t.is_trend_anomaly = true;
@@ -121,7 +121,7 @@ fn test_temperature_emulation_anomalies__rising_trend() {
 }
 
 #[test]
-fn test_temperature_emulation_anomalies__decreasing_trend() {
+fn test_temperature_emulation_decreasing_trend() {
     let mut emulator = create_emulator(1, 0.0);
     emulator.t.as_mut().unwrap().is_trend_anomaly = true;
     emulator.t.as_mut().unwrap().trend_anomaly_magnitude = 30.0;

@@ -55,7 +55,7 @@ impl Encoder {
         }
     }
 
-    pub fn set_values(&mut self, v: Vec<u64>) {
+    pub fn _set_values(&mut self, v: Vec<u64>) {
         let len = v.len();
         self.buf = v;
         self.t = len;
@@ -64,7 +64,7 @@ impl Encoder {
         self.bytes.clear()
     }
 
-    pub fn reset(&mut self) {
+    pub fn _reset(&mut self) {
         self.t = 0;
         self.h = 0;
         self.bp = 0;
@@ -161,10 +161,10 @@ impl Decoder {
             self.read();
         }
 
-        self.bytes.len() >= 8 || (self.i >= 0 && self.i < self.n)
+        self.bytes.len() >= 8 || (self.i < self.n)
     }
 
-    pub fn set_bytes(&mut self, b: Vec<u8>) {
+    pub fn _set_bytes(&mut self, b: Vec<u8>) {
         self.bytes = b;
         self.i = 0;
         self.n = 0;
@@ -185,7 +185,7 @@ impl Decoder {
         let v = u64::from_be_bytes(self.bytes[..8].try_into().unwrap());
         // self.bytes = self.bytes.[8..];
         self.bytes.drain(0..8);
-        let n = decode(&mut self.buf, v).unwrap_or(0);
+        let n = _decode(&mut self.buf, v).unwrap_or(0);
         self.n = n;
         self.i = 0;
     }
@@ -195,7 +195,7 @@ struct Packing {
     n: usize,
     bit: usize,
     unpack: fn(u64, &mut [u64; 240]),
-    pack: fn(&[u64]) -> u64,
+    _pack: fn(&[u64]) -> u64,
 }
 
 const SELECTOR: [Packing; 16] = [
@@ -203,97 +203,97 @@ const SELECTOR: [Packing; 16] = [
         n: 240,
         bit: 0,
         unpack: unpack240,
-        pack: pack240,
+        _pack: pack240,
     },
     Packing {
         n: 120,
         bit: 0,
         unpack: unpack120,
-        pack: pack120,
+        _pack: pack120,
     },
     Packing {
         n: 60,
         bit: 1,
         unpack: unpack60,
-        pack: pack60,
+        _pack: pack60,
     },
     Packing {
         n: 30,
         bit: 2,
         unpack: unpack30,
-        pack: pack30,
+        _pack: pack30,
     },
     Packing {
         n: 20,
         bit: 3,
         unpack: unpack20,
-        pack: pack20,
+        _pack: pack20,
     },
     Packing {
         n: 15,
         bit: 4,
         unpack: unpack15,
-        pack: pack15,
+        _pack: pack15,
     },
     Packing {
         n: 12,
         bit: 5,
         unpack: unpack12,
-        pack: pack12,
+        _pack: pack12,
     },
     Packing {
         n: 10,
         bit: 6,
         unpack: unpack10,
-        pack: pack10,
+        _pack: pack10,
     },
     Packing {
         n: 8,
         bit: 7,
         unpack: unpack8,
-        pack: pack8,
+        _pack: pack8,
     },
     Packing {
         n: 7,
         bit: 8,
         unpack: unpack7,
-        pack: pack7,
+        _pack: pack7,
     },
     Packing {
         n: 6,
         bit: 10,
         unpack: unpack6,
-        pack: pack6,
+        _pack: pack6,
     },
     Packing {
         n: 5,
         bit: 12,
         unpack: unpack5,
-        pack: pack5,
+        _pack: pack5,
     },
     Packing {
         n: 4,
         bit: 15,
         unpack: unpack4,
-        pack: pack4,
+        _pack: pack4,
     },
     Packing {
         n: 3,
         bit: 20,
         unpack: unpack3,
-        pack: pack3,
+        _pack: pack3,
     },
     Packing {
         n: 2,
         bit: 30,
         unpack: unpack2,
-        pack: pack2,
+        _pack: pack2,
     },
     Packing {
         n: 1,
         bit: 60,
         unpack: unpack1,
-        pack: pack1,
+        _pack: pack1,
     },
 ];
 
@@ -319,7 +319,7 @@ pub fn count_bytes(mut b: &[u8]) -> Result<usize, String> {
 }
 
 /// Returns the number of integers encoded within an u64.
-pub fn count(v: u64) -> Result<usize, String> {
+pub fn _count(v: u64) -> Result<usize, String> {
     let sel = (v >> 60).to_usize().unwrap();
     if sel >= 16 {
         return Err(format!("invalid selector value: {}", sel));
@@ -327,14 +327,8 @@ pub fn count(v: u64) -> Result<usize, String> {
     Ok(SELECTOR[sel].n)
 }
 
-pub trait DecodeEach {
-    // Return true to continue decoding.
-    fn call(&self, v: u64) -> bool;
-}
-
 // pub fn for_each(mut b: &[u8], fn_: fn(v: u64) -> bool) -> Result<usize, String> {
-//     pub fn for_each<F: DecodeEach>(mut b: &[u8], f: F) -> Result<usize, String> {
-pub fn for_each<F>(mut b: &[u8], f: F) -> Result<usize, String>
+pub fn for_each<F>(mut b: &[u8], mut f: F) -> Result<usize, String>
 where
     F: FnMut(u64) -> bool,
 {
@@ -343,6 +337,7 @@ where
         // let v = binary.BigEndian.Uint64(b[..8]);
         let mut v = u64::from_be_bytes(b[..8].try_into().unwrap());
         b = &b[8..];
+        // b = b.drain(0..8);
         count += 1;
 
         let sel = (v >> 60).to_usize().unwrap();
@@ -353,16 +348,15 @@ where
         let n = SELECTOR[sel].n;
         let bits = SELECTOR[sel].bit; // as usize;
 
-        // let mask = uint64(^(int64(^0) << bits))
-        unimplemented!("mask"); // FIXME
+        let mask = (!((!0 as i64) << bits)) as u64;
 
-        // for i in 0..n {
-        //     let val = v & mask;
-        //     if !f.call(val) {
-        //         Ok(count)
-        //     }
-        //     v = v >> bits
-        // }
+        for _ in 0..n {
+            let val = v & mask;
+            if !f(val) {
+                return Ok(count);
+            }
+            v = v >> bits
+        }
     }
     Ok(count)
 }
@@ -371,7 +365,7 @@ pub fn count_bytes_between(mut b: &[u8], min: u64, max: u64) -> Result<usize, St
     let mut count = 0;
     while b.len() >= 8 {
         // let v = binary.BigEndian.Uint64(&b[..8]);
-        let v = u64::from_be_bytes(b[..8].try_into().unwrap());
+        let mut v = u64::from_be_bytes(b[..8].try_into().unwrap());
         b = &b[8..];
 
         let sel = (v >> 60).to_usize().unwrap();
@@ -385,19 +379,18 @@ pub fn count_bytes_between(mut b: &[u8], min: u64, max: u64) -> Result<usize, St
             continue;
         }
 
-        // mask := uint64(^(int64(^0) << uint(selector[sel].bit)))
-        unimplemented!("mask"); // FIXME
+        let mask = (!((!0 as i64) << (SELECTOR[sel].bit as usize))) as u64;
 
-        // for i in 0..SELECTOR[sel].n {
-        //     let val = v & mask;
-        //     if val >= min && val < max {
-        //         count += 1;
-        //     } else if val > max {
-        //         break;
-        //     }
-        //
-        //     v = v >> SELECTOR[sel].bit; // as usize
-        // }
+        for _ in 0..SELECTOR[sel].n {
+            let val = v & mask;
+            if val >= min && val < max {
+                count += 1;
+            } else if val > max {
+                break;
+            }
+
+            v = v >> SELECTOR[sel].bit; // as usize
+        }
     }
 
     if b.len() > 0 {
@@ -592,7 +585,7 @@ pub fn encode_all_ref(dst: &mut [u64], src: &[u64]) -> Result<usize, String> {
     Ok(j)
 }
 
-pub fn decode(dst: &mut [u64; 240], v: u64) -> Result<usize, String> {
+pub fn _decode(dst: &mut [u64; 240], v: u64) -> Result<usize, String> {
     let sel = (v >> 60).to_usize().unwrap();
     if sel >= 16 {
         return Err(format!("invalid selector value: {}", sel));
@@ -606,13 +599,15 @@ pub fn decode(dst: &mut [u64; 240], v: u64) -> Result<usize, String> {
 /// of values written or an error.
 pub fn decode_all(dst: &mut [u64], src: &[u64]) -> Result<usize, String> {
     let mut j = 0;
-    src.iter().try_for_each(|v| {
+    src.iter().try_for_each(|&v| {
         let sel = (v >> 60).to_usize().unwrap();
         if sel >= 16 {
             return Err(format!("invalid selector value: {}", sel));
         }
-        // selector[sel].unpack(v, (*[240]uint64)(unsafe.Pointer(&dst[j])))
-        unimplemented!("unpack"); // FIXME
+        let unpack = SELECTOR[sel].unpack;
+        unpack(v, &mut dst[j..j + 240].try_into().unwrap());
+        // selector[sel].unpack(v, (*[240]uint64)(unsafe.Pointer(&dst[j]))) TODO: double check
+
         j += SELECTOR[sel].n;
         Ok(())
     })?;
@@ -640,7 +635,7 @@ fn can_pack(src: &[u64], n: usize, bits: usize) -> bool {
         return true;
     }
 
-    let max = ((1 << (bits as u64)) - 1) as u64;
+    let max = ((1_u64.wrapping_shl(bits as u32)) - 1) as u64;
 
     for i in 0..end {
         if src[i] > max {
@@ -652,12 +647,12 @@ fn can_pack(src: &[u64], n: usize, bits: usize) -> bool {
 }
 
 // Packs 240 ones from in using 1 bit each.
-fn pack240(src: &[u64]) -> u64 {
+fn pack240(_src: &[u64]) -> u64 {
     0
 }
 
 // Packs 120 ones from in using 1 bit each.
-fn pack120(src: &[u64]) -> u64 {
+fn pack120(_src: &[u64]) -> u64 {
     0
 }
 
@@ -893,14 +888,11 @@ fn pack1(src: &[u64]) -> u64 {
     15 << 60 | src[0]
 }
 
-fn unpack240(v: u64, dst: &mut [u64; 240]) {
+fn unpack240(_v: u64, dst: &mut [u64; 240]) {
     dst.fill(1)
-    // dst.iter_mut().for_each(|v|{
-    //     *v = 1;
-    // });
 }
 
-fn unpack120(v: u64, dst: &mut [u64; 240]) {
+fn unpack120(_v: u64, dst: &mut [u64; 240]) {
     dst.fill(1);
 }
 

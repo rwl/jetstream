@@ -1,5 +1,5 @@
 // Returns the number of bits required to store the value x.
-pub(crate) fn msb32(mut x: u32) -> usize {
+pub(crate) fn _msb32(mut x: u32) -> usize {
     let mut pos = 32;
     let temp = x >> 16;
     if temp != 0 {
@@ -30,13 +30,13 @@ pub(crate) fn msb32(mut x: u32) -> usize {
 }
 
 // Returns the number of bits required to store the value x.
-fn msb64(n: u64) -> usize {
+fn _msb64(n: u64) -> usize {
     // if n <= 0 {
     //     return -1;
     // }
     assert!(n > 0);
     let mut r: usize = 0;
-    let mut v: usize = 0;
+    let mut v: usize;
     if n >= 1 << 32 {
         r += 32;
         v = (n >> 32) as usize;

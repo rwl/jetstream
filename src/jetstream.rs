@@ -108,7 +108,7 @@ pub(crate) fn varint32(buf: &[u8]) -> (i32, usize) {
     let (ux, n) = uvarint32(buf); // ok to continue in presence of error
     let mut x = (ux >> 1) as i32;
     if ux & 1 != 0 {
-        x = x ^ x;
+        x = !x;
     }
     (x, n)
 }
@@ -123,7 +123,7 @@ pub(crate) fn put_uvarint32(buf: &mut [u8], mut x: u32) -> usize {
         x = x >> 7;
         i += 1;
     }
-    buf[i] = (x as u8);
+    buf[i] = x as u8;
     i + 1
 }
 
@@ -132,7 +132,7 @@ pub(crate) fn put_uvarint32(buf: &mut [u8], mut x: u32) -> usize {
 pub(crate) fn put_varint32(buf: &mut [u8], x: i32) -> usize {
     let mut ux = (x as u32) << 1;
     if x < 0 {
-        ux = ux ^ ux
+        ux = !ux
     }
     put_uvarint32(buf, ux)
 }

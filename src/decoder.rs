@@ -5,7 +5,6 @@ use crate::jetstream::{
 };
 use flate2::read::GzDecoder;
 use std::io::Read;
-use std::sync;
 
 /// A stream protocol instance for decoding.
 pub struct Decoder {
@@ -21,8 +20,7 @@ pub struct Decoder {
     using_simple8b: bool,
     delta_encoding_layers: usize,
     delta_sum: Vec<Vec<i32>>,
-    mutex: sync::Mutex<usize>,
-
+    // mutex: sync::Mutex<()>,
     use_xor: bool,
     spatial_ref: Vec<isize>,
 }
@@ -74,7 +72,7 @@ impl Decoder {
             using_simple8b: samples_per_message > SIMPLE8B_THRESHOLD_SAMPLES,
             delta_encoding_layers,
             delta_sum: vec![vec![0; i32_count]; delta_encoding_layers - 1],
-            mutex: sync::Mutex::new(0),
+            // mutex: sync::Mutex::new(()),
             use_xor: false,
             spatial_ref: vec![-1; i32_count],
         }
@@ -98,13 +96,12 @@ impl Decoder {
 
     /// Decodes to a pre-allocated buffer.
     pub fn decode_to_buffer(&mut self, buf: &[u8], _total_length: usize) -> Result<(), String> {
-        self.mutex.lock();
-        // TODO: defer self.mutex.Unlock()
+        // let _lock = self.mutex.lock().unwrap();
 
         let mut length: usize = 16;
-        let mut _val_signed: i32 = 0;
-        let mut _val_unsigned: u32 = 0;
-        let mut _len_b: usize = 0;
+        // let mut _val_signed: i32 = 0;
+        // let mut _val_unsigned: u32 = 0;
+        // let mut _len_b: usize = 0;
 
         // check ID
         assert_eq!(buf[..length], self.id.as_bytes()[..], "IDs did not match");
@@ -202,11 +199,11 @@ impl Decoder {
                     // all variables and timesteps have been decoded
                     if decode_counter == actual_samples * self.i32_count {
                         // take care of spatial references (cannot do this piecemeal above because it disrupts the previous value history)
-                        for indexTs in 0..self.out.len() {
-                            for i in 0..self.out[indexTs].i32s.len() {
+                        for index_ts in 0..self.out.len() {
+                            for i in 0..self.out[index_ts].i32s.len() {
                                 if self.spatial_ref[i] >= 0 {
-                                    self.out[indexTs].i32s[i] +=
-                                        self.out[indexTs].i32s[self.spatial_ref[i] as usize];
+                                    self.out[index_ts].i32s[i] +=
+                                        self.out[index_ts].i32s[self.spatial_ref[i] as usize];
                                 }
                             }
                         }
