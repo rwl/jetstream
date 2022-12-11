@@ -19,8 +19,10 @@ pub mod emulator;
 mod encoder;
 mod encoding;
 mod jetstream;
-pub mod test;
+#[cfg(test)]
+mod test;
+pub mod testcase;
 
-pub use decoder::Decoder;
-pub use encoder::Encoder;
-pub use jetstream::*;
+pub use crate::decoder::Decoder;
+pub use crate::encoder::Encoder;
+pub use crate::jetstream::*;

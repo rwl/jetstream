@@ -1,11 +1,8 @@
-#[cfg(test)]
 use crate::emulator::SagEmulation;
 use crate::emulator::{Emulator, TemperatureEmulation, ThreePhaseEmulation};
-#[cfg(test)]
 use std::collections::HashMap;
 use std::f64::consts::PI;
 
-#[cfg(test)]
 fn create_emulator(sampling_rate: usize, phase_offset_deg: f64) -> Emulator {
     let mut emu = Emulator::new(sampling_rate, 50.0);
 
@@ -36,13 +33,11 @@ fn create_emulator(sampling_rate: usize, phase_offset_deg: f64) -> Emulator {
     emu
 }
 
-#[cfg(test)]
 fn floating_point_equal(expected: f64, actual: f64, threshold: f64) -> bool {
     let abs_diff = (expected - actual).abs();
     abs_diff < threshold
 }
 
-#[cfg(test)]
 fn mean(values: &[f64]) -> f64 {
     let mut sum: f64 = 0.0;
     values.iter().for_each(|value| sum += value);

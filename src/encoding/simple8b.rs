@@ -1,14 +1,16 @@
 use rand_distr::num_traits::ToPrimitive;
 
-/// Package simple8b implements the 64bit integer encoding algoritm as published
-/// by Ann and Moffat in "Index compression using 64-bit words", Softw. Pract. Exper. 2010; 40:131–147
+/// Implements the 64bit integer encoding algoritm as published by Ann and Moffat in
+/// "Index compression using 64-bit words", Softw. Pract. Exper. 2010; 40:131–147
 ///
-/// It is capable of encoding multiple integers with values betweeen 0 and to 1^60 -1, in a single word.
+/// It is capable of encoding multiple integers with values between `0` and `1^60 -1`,
+/// in a single word.
 
 /// Simple8b is 64bit word-sized encoder that packs multiple integers into a single word using
-/// a 4 bit selector values and up to 60 bits for the remaining values.  Integers are encoded using
+/// a 4 bit selector values and up to 60 bits for the remaining values. Integers are encoded using
 /// the following table:
 ///
+/// ```txt
 ///     ┌──────────────┬─────────────────────────────────────────────────────────────┐
 ///     │  Selector    │      0    1   2   3   4   5   6   7  8  9  0 11 12 13 14 15 │
 ///     ├──────────────┼─────────────────────────────────────────────────────────────┤
@@ -18,9 +20,10 @@ use rand_distr::num_traits::ToPrimitive;
 ///     ├──────────────┼─────────────────────────────────────────────────────────────┤
 ///     │  Wasted Bits │     60   60   0   0   0   0  12   0  4  4  0  0  0  0  0  0 │
 ///     └──────────────┴─────────────────────────────────────────────────────────────┘
+/// ```
 ///
 /// For example, when the number of values can be encoded using 4 bits, selected 5 is encoded in the
-/// 4 most significant bits followed by 15 values encoded used 4 bits each in the remaing 60 bits.
+/// 4 most significant bits followed by 15 values encoded used 4 bits each in the remaining 60 bits.
 
 struct Packing {
     n: usize,
@@ -46,16 +49,6 @@ const SELECTOR: [Packing; 16] = [
     Packing { n: 1, bit: 60 },
 ];
 
-/// Returns the number of integers encoded within an u64.
-pub fn _count(v: u64) -> Result<usize, String> {
-    let sel = (v >> 60).to_usize().unwrap();
-    if sel >= 16 {
-        return Err(format!("invalid selector value: {}", sel));
-    }
-    Ok(SELECTOR[sel].n)
-}
-
-// pub fn for_each(mut b: &[u8], fn_: fn(v: u64) -> bool) -> Result<usize, String> {
 pub fn for_each<F>(mut b: &[u8], mut f: F) -> Result<usize, String>
 where
     F: FnMut(u64) -> bool,

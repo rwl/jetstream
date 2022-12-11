@@ -35,8 +35,10 @@ fn main() {
     // loop through data samples and encode into Slipstream format
     // for d in 0..data.len() {
     data.iter_mut().for_each(|d| {
+        let (buf, length) = enc.encode(d).unwrap();
+
         // check if message encoding has finished (or an error occurred)
-        if let Some((buf, length)) = enc.encode(d).unwrap() {
+        if length > 0 {
             // buf should now contain an encoded message, and can be send over the network or stored
 
             // print encoding performance results
@@ -67,12 +69,12 @@ fn main() {
                     decoded_data[i] = (dec.out[i].i32s[0] as f64) / 1000.0;
 
                     // extract individual values
-                    for j in 0..dec.i32_count {
-                        println!(
-                            "timestamp: {} value: {} quality: {}",
-                            dec.out[i].t, dec.out[i].i32s[j], dec.out[i].q[j]
-                        );
-                    }
+                    // for j in 0..dec.i32_count {
+                    //     println!(
+                    //         "timestamp: {} value: {} quality: {}",
+                    //         dec.out[i].t, dec.out[i].i32s[j], dec.out[i].q[j]
+                    //     );
+                    // }
                 }
 
                 // print plot of decoded data in terminal
