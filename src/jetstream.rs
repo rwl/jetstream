@@ -46,7 +46,7 @@ impl DatasetWithQuality {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub(crate) struct QualityHistory {
     pub(crate) value: u32,
     pub(crate) samples: u32,
@@ -57,17 +57,17 @@ pub(crate) fn create_spatial_refs(
     count_v: usize,
     count_i: usize,
     include_neutral: bool,
-) -> Vec<isize> {
-    let mut refs: Vec<isize> = vec![-1; count as usize];
+) -> Vec<Option<usize>> {
+    let mut refs: Vec<Option<usize>> = vec![None; count as usize];
 
     let inc = if include_neutral { 4 } else { 3 };
 
     for i in 0..count {
         if i >= inc {
             if i < count_v * inc {
-                refs[i] = (i - inc) as isize
+                refs[i] = Some(i - inc);
             } else if i >= (count_v + 1) * inc && i < (count_v + count_i) * inc {
-                refs[i] = (i - inc) as isize
+                refs[i] = Some(i - inc);
             }
         }
     }
@@ -88,7 +88,7 @@ pub(crate) fn get_delta_encoding(sampling_rate: usize) -> usize {
 /// Copied from encoding/binary/varint.go to provide 32-bit version to avoid casting.
 pub(crate) fn uvarint32(buf: &[u8]) -> (u32, usize) {
     let mut x: u32 = 0;
-    let mut s: u32 = 0; // FIXME: u64
+    let mut s: usize = 0;
     for i in 0..buf.len() {
         let b = buf[i];
         if b < 0x80 {
@@ -119,8 +119,7 @@ pub(crate) fn put_uvarint32(buf: &mut [u8], mut x: u32) -> usize {
     let mut i = 0;
     while x >= 0x80 {
         buf[i] = (x as u8) | 0x80;
-        // x >>= 7;
-        x = x >> 7;
+        x >>= 7;
         i += 1;
     }
     buf[i] = x as u8;

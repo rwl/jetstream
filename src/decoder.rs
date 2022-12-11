@@ -14,7 +14,7 @@ pub struct Decoder {
     encoded_samples: usize,
     pub i32_count: usize,
     // gz_buf: bytebuffer::ByteBuffer,
-    gz_buf: Vec<u8>,
+    // gz_buf: Vec<u8>,
     pub out: Vec<DatasetWithQuality>,
     start_timestamp: u64,
     using_simple8b: bool,
@@ -22,7 +22,7 @@ pub struct Decoder {
     delta_sum: Vec<Vec<i32>>,
     // mutex: sync::Mutex<()>,
     use_xor: bool,
-    spatial_ref: Vec<isize>,
+    spatial_ref: Vec<Option<usize>>,
 }
 
 impl Decoder {
@@ -34,7 +34,7 @@ impl Decoder {
         samples_per_message: usize,
     ) -> Self {
         // TODO make this conditional on message size to reduce memory use
-        let buf_size = samples_per_message * i32_count * 8 + i32_count * 4;
+        // let buf_size = samples_per_message * i32_count * 8 + i32_count * 4;
         // d.gz_buf = bytebuffer::ByteBuffer::from_bytes(&Vec::with_capacity(buf_size));
 
         // d.delta_encoding_layers = get_delta_encoding(sampling_rate);
@@ -66,7 +66,7 @@ impl Decoder {
             samples_per_message,
             encoded_samples: 0,
             i32_count,
-            gz_buf: Vec::with_capacity(buf_size),
+            // gz_buf: Vec::with_capacity(buf_size),
             out: vec![DatasetWithQuality::new(i32_count); samples_per_message],
             start_timestamp: 0,
             using_simple8b: samples_per_message > SIMPLE8B_THRESHOLD_SAMPLES,
@@ -74,7 +74,7 @@ impl Decoder {
             delta_sum: vec![vec![0; i32_count]; delta_encoding_layers - 1],
             // mutex: sync::Mutex::new(()),
             use_xor: false,
-            spatial_ref: vec![-1; i32_count],
+            spatial_ref: vec![None; i32_count],
         }
     }
 
@@ -104,7 +104,9 @@ impl Decoder {
         // let mut _len_b: usize = 0;
 
         // check ID
-        assert_eq!(buf[..length], self.id.as_bytes()[..], "IDs did not match");
+        if buf[..length] != self.id.as_bytes()[..] {
+            return Err("IDs did not match".to_string());
+        }
 
         // decode timestamp
         // self.start_timestamp = binary.BigEndian.Uint64(buf[length..]);
@@ -123,11 +125,13 @@ impl Decoder {
 
         // TODO inspect performance here
         // self.gz_buf.reset();
-        self.gz_buf.clear();
-        if actual_samples > USE_GZIP_THRESHOLD_SAMPLES {
+        // self.gz_buf.clear();
+        let out_bytes = if actual_samples > USE_GZIP_THRESHOLD_SAMPLES {
             let mut gr = GzDecoder::new(&buf[length..]);
 
-            if let Err(err) = gr.read_to_end(&mut self.gz_buf) {
+            let mut gz_buf = Vec::new();
+            // if let Err(err) = gr.read_to_end(&mut self.gz_buf) {
+            if let Err(err) = gr.read_to_end(&mut gz_buf) {
                 return Err(format!("gzip error: {}", err));
             }
             // gr.read_buf(&mut self.gz_buf)?;
@@ -137,12 +141,13 @@ impl Decoder {
             // io.Copy(self.gz_buf, gr)?;
             // origLen, errRead := gr.Read((buf[length:]))
             // gr.Close();
+            gz_buf
         } else {
             // self.gz_buf = bytes.NewBuffer(buf[length..]);
-            self.gz_buf = buf[length..].to_vec(); // FIXME
-        }
-        // log.Debug().Int("gz len", totalLength).Int64("original len", origLen).Msg("decoding")
-        let out_bytes = &self.gz_buf; //.bytes();
+            buf[length..].to_vec()
+        };
+        // debug!(gz_len = _total_length, orig_len = orig_len, "decoding");
+        // let out_bytes = &self.gz_buf; //.bytes();
         length = 0;
 
         if self.using_simple8b {
@@ -201,9 +206,9 @@ impl Decoder {
                         // take care of spatial references (cannot do this piecemeal above because it disrupts the previous value history)
                         for index_ts in 0..self.out.len() {
                             for i in 0..self.out[index_ts].i32s.len() {
-                                if self.spatial_ref[i] >= 0 {
+                                if let Some(spatial_ref_i) = self.spatial_ref[i] {
                                     self.out[index_ts].i32s[i] +=
-                                        self.out[index_ts].i32s[self.spatial_ref[i] as usize];
+                                        self.out[index_ts].i32s[spatial_ref_i];
                                 }
                             }
                         }
@@ -272,9 +277,9 @@ impl Decoder {
                         for index_ts in 0..self.out.len() {
                             for i in 0..self.out[index_ts].i32s.len() {
                                 // skip the first time index
-                                if self.spatial_ref[i] >= 0 {
+                                if let Some(spatial_ref_i) = self.spatial_ref[i] {
                                     self.out[index_ts].i32s[i] +=
-                                        self.out[index_ts].i32s[self.spatial_ref[i] as usize];
+                                        self.out[index_ts].i32s[spatial_ref_i];
                                 }
                             }
                         }

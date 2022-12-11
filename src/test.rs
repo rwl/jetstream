@@ -5,8 +5,11 @@ use crate::jetstream::DatasetWithQuality;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 use std::f64::consts::PI;
+#[cfg(test)]
 use std::io::stdout;
+#[cfg(test)]
 use std::io::Write;
+#[cfg(test)]
 use tabwriter::TabWriter;
 
 #[derive(Default)]
@@ -536,19 +539,24 @@ pub fn test_encode_decode() {
 
     write!(
         tab,
-        "{}\n",
+        "{}\n{}\n",
         [
-            "samples",
-            "sampling rate",
-            "samples per message",
-            "messages",
-            "quality change",
-            "early encode stop",
-            "spatial refs",
-            "size (bytes)",
-            "size (%)",
+            "samples", "sampling", "samples", "messages", "quality", "early", "spatial", "size",
+            "size",
         ]
-        .join("\t") // TODO: line breaks
+        .join("\t"),
+        [
+            "",
+            "rate",
+            "per message",
+            "",
+            "change",
+            "stop",
+            "refs",
+            "(bytes)",
+            "(%)",
+        ]
+        .join("\t")
     )
     .unwrap();
 

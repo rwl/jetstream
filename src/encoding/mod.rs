@@ -16,4 +16,3 @@
 // If not, see <https://www.gnu.org/licenses/>.
 pub(crate) mod bitops;
 pub(crate) mod simple8b;
-mod test;
