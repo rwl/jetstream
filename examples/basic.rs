@@ -1,5 +1,7 @@
 use jetstream::*;
 use rasciigraph::{plot, Config};
+use std::env;
+use std::time::Instant;
 
 fn main() {
     // define settings
@@ -8,6 +10,9 @@ fn main() {
     let system_frequency = 50.03; // Hz
     let sampling_rate = 4800; // Hz
     let samples_per_message = 480; // each message contains 100 ms of data
+
+    let args: Vec<String> = env::args().collect();
+    let quiet = args.len() > 1 && args[1] == "--quiet";
 
     // initialise an encoder
     let mut enc = Encoder::new(
@@ -29,9 +34,11 @@ fn main() {
     });
 
     // use emulator to generate test data
-    let samples_to_encode = 480; // equates to 1 full message
+    let message_count = 10_000;
+    let samples_to_encode = message_count * 480; // equates to 1 full message
     let mut data = create_input_data(&mut emu, samples_to_encode, variable_per_sample);
 
+    let t0 = Instant::now();
     // loop through data samples and encode into Slipstream format
     // for d in 0..data.len() {
     data.iter_mut().for_each(|d| {
@@ -42,13 +49,15 @@ fn main() {
             // buf should now contain an encoded message, and can be send over the network or stored
 
             // print encoding performance results
-            let theory_bytes = variable_per_sample * samples_per_message * 16;
-            println!("Original data size: {} bytes", theory_bytes);
-            println!(
-                "Encoded Slipstream message size: {} bytes ({:1.2} of original)",
-                buf.len(),
-                100.0 * (buf.len() as f64) / (theory_bytes as f64)
-            );
+            if !quiet {
+                let theory_bytes = variable_per_sample * samples_per_message * 16;
+                println!("Original data size: {} bytes", theory_bytes);
+                println!(
+                    "Encoded Slipstream message size: {} bytes ({:1.2} of original)",
+                    buf.len(),
+                    100.0 * (buf.len() as f64) / (theory_bytes as f64)
+                );
+            }
 
             // initialise a decoder
             let mut dec = Decoder::new(
@@ -62,7 +71,7 @@ fn main() {
             dec.decode_to_buffer(&buf, length).unwrap();
 
             // iterate through the decoded samples
-            {
+            if !quiet {
                 let mut decoded_data = vec![0.0; samples_to_encode];
                 for i in 0..dec.out.len() {
                     // extract the phase A current values (at index '0') and convert to Amps
@@ -87,6 +96,8 @@ fn main() {
             }
         }
     });
+
+    println!("Elapsed time = {:?}", t0.elapsed());
 }
 
 fn create_input_data(

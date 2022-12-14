@@ -17,7 +17,7 @@
 mod decoder;
 pub mod emulator;
 mod encoder;
-mod encoding;
+pub mod encoding;
 mod jetstream;
 #[cfg(test)]
 mod test;

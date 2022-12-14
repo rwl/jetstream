@@ -16,3 +16,17 @@ rand_distr = "0.4.3"
 log = { version = "0.4.17", features = ["kv_unstable_std"] }
 tabwriter = "1.2.1"
 
+[dev-dependencies]
+criterion = "0.4"
+
+[[bench]]
+name = "encoder_benchmark"
+harness = false
+
+[[bench]]
+name = "encoding_benchmark"
+harness = false
+
+[[bench]]
+name = "emulator_benchmark"
+harness = false

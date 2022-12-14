@@ -2,66 +2,10 @@ use crate::decoder::Decoder;
 use crate::emulator::Emulator;
 use crate::encoder::Encoder;
 use crate::jetstream::DatasetWithQuality;
-use crate::testcase::{create_emulator, encode_and_decode, TESTS};
+use crate::testcase::{create_emulator, create_input_data, encode_and_decode, TESTS};
 use std::io::stdout;
 use std::io::Write;
 use tabwriter::TabWriter;
-
-fn create_input_data(
-    ied: &mut Emulator,
-    samples: usize,
-    count_of_variables: usize,
-    quality_change: bool,
-) -> Vec<DatasetWithQuality> {
-    let mut data = vec![DatasetWithQuality::new(count_of_variables); samples];
-    // data.iter_mut().for_each(|d| {
-    //     d.i32s = vec![0; count_of_variables];
-    //     d.q = vec![0; count_of_variables];
-    // });
-
-    // generate data using IED emulator
-    // the timestamp is a simple integer counter, starting from 0
-    // for i := range data {
-    data.iter_mut().enumerate().for_each(|(k, d)| {
-        // compute emulated waveform data
-        ied.step();
-
-        // calculate timestamp
-        d.t = k as u64;
-
-        let i = ied.i.as_ref().unwrap();
-        let v = ied.v.as_ref().unwrap();
-
-        // set waveform data
-        d.i32s[0] = (i.a * 1000.0) as i32;
-        d.i32s[1] = (i.b * 1000.0) as i32;
-        d.i32s[2] = (i.c * 1000.0) as i32;
-        d.i32s[3] = ((i.a + i.b + i.c) * 1000.0) as i32;
-        d.i32s[4] = (v.a * 100.0) as i32;
-        d.i32s[5] = (v.b * 100.0) as i32;
-        d.i32s[6] = (v.c * 100.0) as i32;
-        d.i32s[7] = ((v.a + v.b + v.c) * 100.0) as i32;
-
-        // set quality data
-        d.q[0] = 0;
-        d.q[1] = 0;
-        d.q[2] = 0;
-        d.q[3] = 0;
-        d.q[4] = 0;
-        d.q[5] = 0;
-        d.q[6] = 0;
-        d.q[7] = 0;
-
-        if quality_change {
-            if k == 2 {
-                d.q[0] = 1
-            } else if k == 3 {
-                d.q[0] = 0x41
-            }
-        }
-    });
-    data
-}
 
 fn create_input_data_dual_ied(
     ied1: &mut Emulator,
