@@ -15,14 +15,9 @@ fn create_input_data_dual_ied(
     quality_change: bool,
 ) -> Vec<DatasetWithQuality> {
     let mut data = vec![DatasetWithQuality::new(count_of_variables); samples];
-    // data.iter_mut().for_each(|d| {
-    //     d.i32s = vec![0; count_of_variables];
-    //     d.q = vec![0; count_of_variables];
-    // });
 
     // generate data using IED emulator
     // the timestamp is a simple integer counter, starting from 0
-    // for i := range data {
     data.iter_mut().enumerate().for_each(|(k, d)| {
         // compute emulated waveform data
         ied1.step();
@@ -113,17 +108,10 @@ pub fn test_encode_decode() {
     )
     .unwrap();
 
-    // keys := make([]string, 0, len(tests))
-    // for k := range tests {
-    // 	keys = append(keys, k)
-    // }
-    // sort.Strings(keys)
     let mut keys = TESTS.keys().map(|k| k.to_string()).collect::<Vec<String>>();
     keys.sort();
 
-    // for _, name := range keys {
     keys.iter().for_each(|name| {
-        // t.Parallel()
         let id = uuid::Uuid::new_v4();
         let test = TESTS.get(name).unwrap();
 
@@ -199,7 +187,6 @@ pub fn test_encode_decode() {
         let mean_bytes_per_message =
             (encode_stats.total_bytes as f64) / (encode_stats.messages as f64); // includes header overhead
         let percent = 100.0 * (mean_bytes_per_message as f64) / (theory_bytes_per_message as f64);
-        // meanBytesWithoutHeader := float64(encode_stats.total_bytes-encode_stats.total_header_bytes) / float64(encode_stats.iterations)
 
         assert!(percent <= test.expected_size);
 

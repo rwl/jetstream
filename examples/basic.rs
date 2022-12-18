@@ -1,6 +1,7 @@
 use jetstream::*;
 use rasciigraph::{plot, Config};
 use std::env;
+use std::sync::Mutex;
 use std::time::Instant;
 
 fn main() {
@@ -15,12 +16,13 @@ fn main() {
     let quiet = args.len() > 1 && args[1] == "--quiet";
 
     // initialise an encoder
-    let mut enc = Encoder::new(
+    let enc_lock = Mutex::new(Encoder::new(
         uuid,
         variable_per_sample,
         sampling_rate,
         samples_per_message,
-    );
+    ));
+    let mut enc = enc_lock.lock().unwrap();
 
     // use the Synaptec "emulator" library to generate three-phase voltage and current test signals
     let mut emu = emulator::Emulator::new(sampling_rate, system_frequency);
@@ -34,13 +36,12 @@ fn main() {
     });
 
     // use emulator to generate test data
-    let message_count = 10_000;
+    let message_count = 1;
     let samples_to_encode = message_count * 480; // equates to 1 full message
     let mut data = create_input_data(&mut emu, samples_to_encode, variable_per_sample);
 
     let t0 = Instant::now();
     // loop through data samples and encode into Slipstream format
-    // for d in 0..data.len() {
     data.iter_mut().for_each(|d| {
         let (buf, length) = enc.encode(d).unwrap();
 
@@ -106,16 +107,7 @@ fn create_input_data(
     count_of_variables: usize,
 ) -> Vec<DatasetWithQuality> {
     // intialise data structure
-    // data := make([]slipstream.DatasetWithQuality, samples)
-    // for i := range data {
-    // 	data[i].int32s = make([]int32, count_of_variables)
-    // 	data[i].Q = make([]uint32, count_of_variables)
-    // }
     let mut data = vec![DatasetWithQuality::new(count_of_variables); samples];
-    // data.iter_mut().for_each(|d| {
-    //     d.i32s = vec![0; count_of_variables];
-    //     d.q = vec![0; count_of_variables];
-    // });
 
     // generate data using IED emulator
     // the timestamp is a simple integer counter, starting from 0

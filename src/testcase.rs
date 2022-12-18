@@ -20,7 +20,6 @@ pub struct TestCase {
 }
 
 lazy_static! {
-    // static ref ID: uuid::Uuid = uuid::Uuid::new_v4();
     pub static ref TESTS: HashMap<String, TestCase> = HashMap::from([
         (
             "a10-1".to_string(),
@@ -308,14 +307,9 @@ pub fn create_input_data(
     quality_change: bool,
 ) -> Vec<DatasetWithQuality> {
     let mut data = vec![DatasetWithQuality::new(count_of_variables); samples];
-    // data.iter_mut().for_each(|d| {
-    //     d.i32s = vec![0; count_of_variables];
-    //     d.q = vec![0; count_of_variables];
-    // });
 
     // generate data using IED emulator
     // the timestamp is a simple integer counter, starting from 0
-    // for i := range data {
     data.iter_mut().enumerate().for_each(|(k, d)| {
         // compute emulated waveform data
         ied.step();
@@ -385,7 +379,6 @@ pub fn encode_and_decode(
     let mut total_samples_read = 0;
 
     for i in 0..data.len() {
-        // data.iter_mut().for_each(|d| {
         encode_stats.samples += 1;
         let (buf, length) = enc.encode(data.get_mut(i).unwrap())?;
 
@@ -408,7 +401,6 @@ pub fn encode_and_decode(
             // compare decoded output
             if compare {
                 for i in 0..dec.out.len() {
-                    // dec.Out.iter().for_each(|out| {
                     // only check up to samples encoded
                     if early_encoding_stop && i >= EARLY_ENCODING_STOP_SAMPLES {
                         break;
@@ -423,7 +415,7 @@ pub fn encode_and_decode(
                             j
                         );
 
-                        // println!("fine at {},{} = {}", i, j, (*data)[total_samples_read+i].i32s[j], dec.out[i].i32s[j]);
+                        // println!("fine at {},{} = {}", i, j, data[total_samples_read+i].i32s[j], dec.out[i].i32s[j]);
                         assert_eq!(
                             (*data)[total_samples_read + i].q[j],
                             dec.out[i].q[j],

@@ -1,6 +1,6 @@
 use rand_distr::num_traits::ToPrimitive;
 
-/// Implements the 64bit integer encoding algoritm as published by Ann and Moffat in
+/// Implements the 64bit integer encoding algorithm as published by Ann and Moffat in
 /// "Index compression using 64-bit words", Softw. Pract. Exper. 2010; 40:131–147
 ///
 /// It is capable of encoding multiple integers with values between `0` and `1^60 -1`,
@@ -55,10 +55,8 @@ where
 {
     let mut count = 0;
     while b.len() >= 8 {
-        // let v = binary.BigEndian.Uint64(b[..8]);
         let mut v = u64::from_be_bytes(b[..8].try_into().unwrap());
         b = &b[8..];
-        // b = b.drain(0..8);
         count += 1;
 
         let sel = (v >> 60).to_usize().unwrap();

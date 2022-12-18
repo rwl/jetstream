@@ -5,60 +5,34 @@ use crate::jetstream::{
 };
 use flate2::read::GzDecoder;
 use std::io::Read;
+use uuid::Uuid;
 
 /// A stream protocol instance for decoding.
 pub struct Decoder {
-    pub id: uuid::Uuid,
+    pub id: Uuid,
     pub sampling_rate: usize,
     pub samples_per_message: usize,
     encoded_samples: usize,
     pub i32_count: usize,
-    // gz_buf: bytebuffer::ByteBuffer,
-    // gz_buf: Vec<u8>,
     pub out: Vec<DatasetWithQuality>,
     start_timestamp: u64,
     using_simple8b: bool,
     delta_encoding_layers: usize,
     delta_sum: Vec<Vec<i32>>,
-    // mutex: sync::Mutex<()>,
-    use_xor: bool,
+    /// Use XOR delta instead of arithmetic delta.
+    pub use_xor: bool,
     spatial_ref: Vec<Option<usize>>,
 }
 
 impl Decoder {
     /// Creates a stream protocol decoder instance for pre-allocated output.
     pub fn new(
-        id: uuid::Uuid,
+        id: Uuid,
         i32_count: usize,
         sampling_rate: usize,
         samples_per_message: usize,
     ) -> Self {
-        // TODO make this conditional on message size to reduce memory use
-        // let buf_size = samples_per_message * i32_count * 8 + i32_count * 4;
-        // d.gz_buf = bytebuffer::ByteBuffer::from_bytes(&Vec::with_capacity(buf_size));
-
-        // d.delta_encoding_layers = get_delta_encoding(sampling_rate);
         let delta_encoding_layers = get_delta_encoding(sampling_rate);
-
-        // storage for delta-delta decoding
-        // d.delta_sum = vec![vec![0; i32_count]; d.delta_encoding_layers - 1];
-        // d.deltaSum = make([][]int32, d.deltaEncodingLayers-1)
-        // for i := range d.deltaSum {
-        // 	d.deltaSum[i] = make([]int32, int32Count)
-        // }
-
-        // initialise each set of outputs in data stucture
-        // for i := range d.Out {
-        // d.out.iter_mut().for_each(|out| {
-        //     out.i32s = vec![0; i32_count];
-        //     out.q = vec![0; i32_count];
-        // });
-
-        // d.spatial_ref = vec![-1; i32_count];
-        // d.spatialRef = make([]int, int32Count)
-        // for i := range d.spatialRef {
-        // 	d.spatialRef[i] = -1
-        // }
 
         Self {
             id,
@@ -66,22 +40,22 @@ impl Decoder {
             samples_per_message,
             encoded_samples: 0,
             i32_count,
-            // gz_buf: Vec::with_capacity(buf_size),
+            // initialise each set of outputs in data structure
             out: vec![DatasetWithQuality::new(i32_count); samples_per_message],
             start_timestamp: 0,
             using_simple8b: samples_per_message > SIMPLE8B_THRESHOLD_SAMPLES,
             delta_encoding_layers,
+            // storage for delta-delta decoding
             delta_sum: vec![vec![0; i32_count]; delta_encoding_layers - 1],
-            // mutex: sync::Mutex::new(()),
             use_xor: false,
             spatial_ref: vec![None; i32_count],
         }
     }
 
-    /// Use XOR delta instead of arithmetic delta.
-    pub fn set_xor(&mut self, xor: bool) {
-        self.use_xor = xor
-    }
+    // /// Use XOR delta instead of arithmetic delta.
+    // pub fn set_xor(&mut self, xor: bool) {
+    //     self.use_xor = xor
+    // }
 
     /// Automatically maps adjacent sets of three-phase currents for spatial compression.
     pub fn set_spatial_refs(
@@ -96,12 +70,7 @@ impl Decoder {
 
     /// Decodes to a pre-allocated buffer.
     pub fn decode_to_buffer(&mut self, buf: &[u8], _total_length: usize) -> Result<(), String> {
-        // let _lock = self.mutex.lock().unwrap();
-
         let mut length: usize = 16;
-        // let mut _val_signed: i32 = 0;
-        // let mut _val_unsigned: u32 = 0;
-        // let mut _len_b: usize = 0;
 
         // check ID
         if buf[..length] != self.id.as_bytes()[..] {
@@ -109,7 +78,6 @@ impl Decoder {
         }
 
         // decode timestamp
-        // self.start_timestamp = binary.BigEndian.Uint64(buf[length..]);
         self.start_timestamp = u64::from_be_bytes(buf[length..length + 8].try_into().unwrap());
         length += 8;
 
@@ -123,31 +91,17 @@ impl Decoder {
 
         let actual_samples = usize::min(self.encoded_samples, self.samples_per_message);
 
-        // TODO inspect performance here
-        // self.gz_buf.reset();
-        // self.gz_buf.clear();
         let out_bytes = if actual_samples > USE_GZIP_THRESHOLD_SAMPLES {
             let mut gr = GzDecoder::new(&buf[length..]);
 
             let mut gz_buf = Vec::new();
-            // if let Err(err) = gr.read_to_end(&mut self.gz_buf) {
             if let Err(err) = gr.read_to_end(&mut gz_buf) {
                 return Err(format!("gzip error: {}", err));
             }
-            // gr.read_buf(&mut self.gz_buf)?;
-
-            // let gr = gzip.NewReader(bytes.NewBuffer(&buf[length..]))?;
-
-            // io.Copy(self.gz_buf, gr)?;
-            // origLen, errRead := gr.Read((buf[length:]))
-            // gr.Close();
             gz_buf
         } else {
-            // self.gz_buf = bytes.NewBuffer(buf[length..]);
             buf[length..].to_vec()
         };
-        // debug!(gz_len = _total_length, orig_len = orig_len, "decoding");
-        // let out_bytes = &self.gz_buf; //.bytes();
         length = 0;
 
         if self.using_simple8b {
@@ -156,70 +110,64 @@ impl Decoder {
             let mut index_ts = 0;
             let mut i = 0;
 
-            let decoded_u64s = simple8b::for_each(
-                /*buf[length:]*/ &out_bytes[length..],
-                |v: u64| -> bool {
-                    // manage 2D slice indices
-                    index_ts = decode_counter % actual_samples;
-                    if decode_counter > 0 && index_ts == 0 {
-                        i += 1;
-                    }
+            let decoded_u64s = simple8b::for_each(&out_bytes[length..], |v: u64| -> bool {
+                // manage 2D slice indices
+                index_ts = decode_counter % actual_samples;
+                if decode_counter > 0 && index_ts == 0 {
+                    i += 1;
+                }
 
-                    // get signed value back with zig-zag decoding
-                    let decoded_value = bitops::zig_zag_decode64(v) as i32;
+                // get signed value back with zig-zag decoding
+                let decoded_value = bitops::zig_zag_decode64(v) as i32;
 
-                    if index_ts == 0 {
-                        self.out[index_ts].i32s[i] = decoded_value;
+                if index_ts == 0 {
+                    self.out[index_ts].i32s[i] = decoded_value;
+                } else {
+                    self.out[index_ts].t = index_ts as u64;
+
+                    // delta decoding
+                    let max_index = usize::min(index_ts, self.delta_encoding_layers - 1) - 1;
+                    if self.use_xor {
+                        self.delta_sum[max_index][i] ^= decoded_value;
                     } else {
-                        self.out[index_ts].t = index_ts as u64;
+                        self.delta_sum[max_index][i] += decoded_value;
+                    }
 
-                        // delta decoding
-                        let max_index = usize::min(index_ts, self.delta_encoding_layers - 1) - 1;
+                    for k in (1..=max_index).rev() {
                         if self.use_xor {
-                            self.delta_sum[max_index][i] ^= decoded_value;
+                            self.delta_sum[k - 1][i] ^= self.delta_sum[k][i];
                         } else {
-                            self.delta_sum[max_index][i] += decoded_value;
-                        }
-
-                        // for k := maxIndex; k >= 1; k-- { TODO: check
-                        for k in (1..=max_index).rev() {
-                            if self.use_xor {
-                                self.delta_sum[k - 1][i] ^= self.delta_sum[k][i];
-                            } else {
-                                self.delta_sum[k - 1][i] += self.delta_sum[k][i];
-                            }
-                        }
-
-                        if self.use_xor {
-                            self.out[index_ts].i32s[i] =
-                                self.out[index_ts - 1].i32s[i] ^ self.delta_sum[0][i];
-                        } else {
-                            self.out[index_ts].i32s[i] =
-                                self.out[index_ts - 1].i32s[i] + self.delta_sum[0][i];
+                            self.delta_sum[k - 1][i] += self.delta_sum[k][i];
                         }
                     }
 
-                    decode_counter += 1;
+                    if self.use_xor {
+                        self.out[index_ts].i32s[i] =
+                            self.out[index_ts - 1].i32s[i] ^ self.delta_sum[0][i];
+                    } else {
+                        self.out[index_ts].i32s[i] =
+                            self.out[index_ts - 1].i32s[i] + self.delta_sum[0][i];
+                    }
+                }
 
-                    // all variables and timesteps have been decoded
-                    if decode_counter == actual_samples * self.i32_count {
-                        // take care of spatial references (cannot do this piecemeal above because it disrupts the previous value history)
-                        for index_ts in 0..self.out.len() {
-                            for i in 0..self.out[index_ts].i32s.len() {
-                                if let Some(spatial_ref_i) = self.spatial_ref[i] {
-                                    self.out[index_ts].i32s[i] +=
-                                        self.out[index_ts].i32s[spatial_ref_i];
-                                }
+                decode_counter += 1;
+
+                // all variables and time-steps have been decoded
+                if decode_counter == actual_samples * self.i32_count {
+                    // take care of spatial references (cannot do this piecemeal
+                    // above because it disrupts the previous value history)
+                    for index_ts in 0..self.out.len() {
+                        for i in 0..self.out[index_ts].i32s.len() {
+                            if let Some(spatial_ref_i) = self.spatial_ref[i] {
+                                self.out[index_ts].i32s[i] +=
+                                    self.out[index_ts].i32s[spatial_ref_i];
                             }
                         }
-
-                        // stop decoding
-                        return false;
                     }
-
-                    return true;
-                },
-            )
+                    return false; // stop decoding
+                }
+                return true;
+            })
             .unwrap_or(0);
 
             // add length of decoded unit64 blocks (8 bytes each)
@@ -227,7 +175,7 @@ impl Decoder {
         } else {
             // get first set of samples using delta-delta encoding
             for i in 0..self.i32_count {
-                let (val_signed, len_b) = varint32(/*buf[length:]*/ &out_bytes[length..]);
+                let (val_signed, len_b) = varint32(&out_bytes[length..]);
                 self.out[0].i32s[i] = val_signed as i32;
                 length += len_b;
             }
@@ -241,8 +189,7 @@ impl Decoder {
 
                     // delta decoding
                     for i in 0..self.i32_count {
-                        let (decoded_value, len_b) =
-                            varint32(/*buf[length:]*/ &out_bytes[length..]);
+                        let (decoded_value, len_b) = varint32(&out_bytes[length..]);
                         length += len_b;
 
                         let max_index =
@@ -253,7 +200,6 @@ impl Decoder {
                             self.delta_sum[max_index][i] += decoded_value;
                         }
 
-                        // for k := maxIndex; k >= 1; k-- {
                         for k in (1..=max_index).rev() {
                             if self.use_xor {
                                 self.delta_sum[k - 1][i] ^= self.delta_sum[k][i];
@@ -273,7 +219,8 @@ impl Decoder {
                     total_samples += 1;
 
                     if total_samples >= actual_samples {
-                        // take care of spatial references (cannot do this piecemeal above because it disrupts the previous value history)
+                        // take care of spatial references (cannot do this piecemeal
+                        // above because it disrupts the previous value history)
                         for index_ts in 0..self.out.len() {
                             for i in 0..self.out[index_ts].i32s.len() {
                                 // skip the first time index
@@ -283,9 +230,7 @@ impl Decoder {
                                 }
                             }
                         }
-
-                        // end decoding
-                        break;
+                        break; // end decoding
                     }
                 }
             }
@@ -295,11 +240,11 @@ impl Decoder {
         for i in 0..self.i32_count {
             let mut sample_number = 0;
             while sample_number < actual_samples {
-                let (val_unsigned, len_b) = uvarint32(/*buf[length:]*/ &out_bytes[length..]);
+                let (val_unsigned, len_b) = uvarint32(&out_bytes[length..]);
                 length += len_b;
                 self.out[sample_number].q[i] = val_unsigned as u32;
 
-                let (val_unsigned, len_b) = uvarint32(/*buf[length:]*/ &out_bytes[length..]);
+                let (val_unsigned, len_b) = uvarint32(&out_bytes[length..]);
                 length += len_b;
 
                 if val_unsigned == 0 {

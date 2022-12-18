@@ -2,7 +2,7 @@ use rand::{thread_rng, Rng};
 use rand_distr::StandardNormal;
 use std::f64::consts::PI;
 
-// Emulated event types
+/// Emulated event types
 pub enum EventType {
     SinglePhaseFault,
     ThreePhaseFault,
@@ -13,22 +13,16 @@ pub enum EventType {
     CapacitorOverCurrent,
 }
 
-/// The number of samples before initiating an emulated fault.
-pub const EMULATED_FAULT_START_SAMPLES: usize = 1000;
+// The number of samples for emulating a fault.
+const MAX_EMULATED_FAULT_DURATION_SAMPLES: usize = 6000;
 
-/// The number of samples for emulating a fault.
-pub const MAX_EMULATED_FAULT_DURATION_SAMPLES: usize = 6000;
+// The number of samples for emulating a fault.
+const MAX_EMULATED_CAPACITOR_OVER_CURRENT_SAMPLES: usize = 8000;
 
-/// The number of samples for emulating a fault.
-pub const MAX_EMULATED_CAPACITOR_OVER_CURRENT_SAMPLES: usize = 8000;
+// The number of samples for emulating frequency deviations.
+const MAX_EMULATED_FREQUENCY_DURATION_SAMPLES: usize = 8000;
 
-/// The number of samples for emulating frequency deviations.
-pub const MAX_EMULATED_FREQUENCY_DURATION_SAMPLES: usize = 8000;
-
-/// The additional fault current magnitude added to one circuit end.
-pub const EMULATED_FAULT_CURRENT_MAGNITUDE: usize = 80;
-
-pub const TWO_PI_OVER_THREE: f64 = 2.0 * PI / 3.0;
+const TWO_PI_OVER_THREE: f64 = 2.0 * PI / 3.0;
 
 #[derive(Default)]
 pub struct ThreePhaseEmulation {
@@ -39,9 +33,9 @@ pub struct ThreePhaseEmulation {
     pub neg_seq_ang: f64,
     pub zero_seq_mag: f64,
     pub zero_seq_ang: f64,
-    pub harmonic_numbers: Vec<f64>, //`mapstructure:",omitempty,flow"`
-    pub harmonic_mags: Vec<f64>, //`mapstructure:",omitempty,flow"` // pu, relative to pos_seq_mag
-    pub harmonic_angs: Vec<f64>, //`mapstructure:",omitempty,flow"`
+    pub harmonic_numbers: Vec<f64>,
+    pub harmonic_mags: Vec<f64>, // pu, relative to pos_seq_mag
+    pub harmonic_angs: Vec<f64>,
     pub noise_max: f64,
 
     // event emulation
@@ -113,7 +107,6 @@ pub struct Emulator {
     // common state
     pub smp_cnt: usize,
     deviation_remaining_samples: usize,
-    // r: Box<dyn rand::Rng>,
 }
 
 fn wrap_angle(a: f64) -> f64 {
@@ -192,8 +185,6 @@ impl Emulator {
             sag: None,
             smp_cnt: 0,
             deviation_remaining_samples: 0,
-            // r: rand.New(rand.NewSource(time.Now().Unix())),
-            // r: Box::new(rand::thread_rng()),
         }
     }
 
@@ -229,7 +220,7 @@ impl Emulator {
 }
 
 impl TemperatureEmulation {
-    fn step_temperature(&mut self, /*r: &mut Box<dyn rand::Rng>,*/ ts: f64) {
+    fn step_temperature(&mut self, ts: f64) {
         let varying_t = self.mean_temperature * (1.0 + self.modulation_mag * f64::cos(1000.0 * ts));
 
         let mut trend_anomaly_delta = 0.0;
@@ -263,7 +254,6 @@ impl TemperatureEmulation {
 
         let total_anomaly_delta = trend_anomaly_delta + instantaneous_anomaly_delta;
 
-        // let norm: f64 = thread_rng().sample::<f64, StandardNormal>(StandardNormal);
         self.t = varying_t
             + thread_rng().sample::<f64, StandardNormal>(StandardNormal)
                 * self.noise_max
@@ -273,12 +263,7 @@ impl TemperatureEmulation {
 }
 
 impl ThreePhaseEmulation {
-    fn step_three_phase(
-        &mut self,
-        /*r: &mut Box<dyn rand::Rng>,*/ f: f64,
-        ts: f64,
-        _smp_cnt: usize,
-    ) {
+    fn step_three_phase(&mut self, f: f64, ts: f64, _smp_cnt: usize) {
         let angle = f * 2.0 * PI * ts + self.p_angle;
         let angle = wrap_angle(angle);
         self.p_angle = angle;
@@ -354,7 +339,7 @@ impl ThreePhaseEmulation {
 }
 
 impl SagEmulation {
-    fn step_sag(&mut self /*, r: &mut Box<dyn rand::Rng>*/) {
+    fn step_sag(&mut self) {
         let mut r = thread_rng();
         // r.Seed(time.Now().UnixNano());
         self.total_strain = self.mean_strain * r.gen::<f64>();

@@ -1,17 +1,18 @@
-/// The number of samples per message required before using simple-8b encoding.
-pub const SIMPLE8B_THRESHOLD_SAMPLES: usize = 16;
+// The number of samples per message required before using simple-8b encoding.
+pub(crate) const SIMPLE8B_THRESHOLD_SAMPLES: usize = 16;
 
-/// The default number of layers of delta encoding. 0 is no delta encoding (just use varint), 1 is delta encoding, etc.
-pub const DEFAULT_DELTA_ENCODING_LAYERS: usize = 3;
+// The default number of layers of delta encoding. 0 is no delta encoding (just use varint),
+// 1 is delta encoding, etc.
+pub(crate) const DEFAULT_DELTA_ENCODING_LAYERS: usize = 3;
 
-/// The number of layers of delta encoding for high sampling rate scenarios.
-pub const HIGH_DELTA_ENCODING_LAYERS: usize = 3;
+// The number of layers of delta encoding for high sampling rate scenarios.
+pub(crate) const HIGH_DELTA_ENCODING_LAYERS: usize = 3;
 
-/// The size of the message header in bytes.
-pub const MAX_HEADER_SIZE: usize = 36;
+// The size of the message header in bytes.
+pub(crate) const MAX_HEADER_SIZE: usize = 36;
 
-/// The minimum number of samples per message to use gzip on the payload.
-pub const USE_GZIP_THRESHOLD_SAMPLES: usize = 4096;
+// The minimum number of samples per message to use gzip on the payload.
+pub(crate) const USE_GZIP_THRESHOLD_SAMPLES: usize = 4096;
 
 /// Lists of variables to be encoded.
 #[derive(Clone)]
@@ -76,7 +77,7 @@ pub(crate) fn create_spatial_refs(
 }
 
 pub(crate) fn get_delta_encoding(sampling_rate: usize) -> usize {
-    if sampling_rate > 100000 {
+    if sampling_rate > 100_000 {
         HIGH_DELTA_ENCODING_LAYERS
     } else {
         DEFAULT_DELTA_ENCODING_LAYERS

@@ -54,8 +54,6 @@ pub fn encode_decode_benchmark(c: &mut Criterion) {
             });
         });
     });
-
-    // group.finish();
 }
 
 pub fn encode_benchmark(c: &mut Criterion) {
@@ -105,8 +103,6 @@ pub fn encode_benchmark(c: &mut Criterion) {
             });
         });
     });
-
-    // group.finish();
 }
 
 pub fn decode_benchmark(c: &mut Criterion) {
@@ -159,8 +155,6 @@ pub fn decode_benchmark(c: &mut Criterion) {
             });
         });
     });
-
-    // group.finish();
 }
 
 criterion_group!(
