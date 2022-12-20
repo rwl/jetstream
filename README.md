@@ -169,6 +169,30 @@ copied before a third message is started. The encoder is not thread-safe, so a s
 the same thread. This to ensure that the order of calls to `encode()` is preserved. While mutex locking will synchronise
 access, it does not queue subsequent calls to `encode()`.
 
+## License and Copyright
+
+```
+// Copyright (c) 2021 Synaptec Ltd
+// Copyright (c) 2022 Richard Lincoln
+//
+// This program is free software: you can redistribute it and/or
+// modify it under the terms of the GNU Affero General Public License
+// as published by the Free Software Foundation, either version 3 of
+// the License, or (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU Affero General Public License for more details.
+//
+// You should have received a copy of the GNU Affero General Public
+// License along with this program.
+// If not, see <https://www.gnu.org/licenses/>.
+```
+
+The original [Go version](https://github.com/synaptecltd/slipstream) is available under the [MIT license](LICENSE.old).
+If you are interested in alternative licensing arrangements please get in contact.
+
 ## References
 
 [^1]: Blair, S. M., Roscoe, A. J., & Irvine, J. (2016). Real-time compression of IEC 61869-9 sampled value data. 2016
